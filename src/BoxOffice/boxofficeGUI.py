@@ -8,6 +8,11 @@ for tunneling connection to mysql server if used from remote location
 @author: beppe
 '''
 # Simple enough, just import everything from tkinter.
+import gi
+gi.require_version('Gtk', '3.0')
+gi.require_version('Atspi', '2.0')
+# from gi.repository import Gtk, Gdk
+
 from tkinter import *
 from tkinter import messagebox
 import MySQLdb
@@ -26,6 +31,7 @@ from dicttoxml import dicttoxml
 from time import sleep
 import code
 from orca.scripts import self_voicing
+from decimal import Decimal
 
 
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
@@ -54,6 +60,7 @@ PRODUCTION  = 0
 running_mode = DEVELOPMENT
 
 # modes for toggle seat buttons
+DISABLE 	= 2
 SELECT 		= 1
 DESELECT 	= 0
 
@@ -316,10 +323,10 @@ class Window(Frame):
 		
 		# Pulsante per reset delle selezioni dei posti
 		
-		self.btnSelectionReset=Button(self.FrameSeatGrid,font=NORM_FONT,text='{}'.format("RESET selezione"),
-												width=20,activebackground='red',activeforeground='yellow',
-												command= self.resetSelection)
-		self.btnSelectionReset.grid(columnspan=5)
+# 		self.btnSelectionReset=Button(self.FrameSeatGrid,font=NORM_FONT,text='{}'.format("RESET selezione"),
+# 												width=20,activebackground='red',activeforeground='yellow',
+# 												command= self.resetSelection)
+# 		self.btnSelectionReset.grid(columnspan=5)
 					
 # 		self.FrameSeatGrid.pack(side='left',padx=(5,5),pady=(5,5),ipadx=20,ipady=20)		
 
@@ -406,11 +413,15 @@ class Window(Frame):
 				self.ASPriceLbl[idx].config(text=self.prices[self.index])
 				print("Scelta : Prezzo = {} all'indice {}".format(self.value,self.index))
 				pass
-			pass
+			
+			self.TotalPrice=Decimal('0.00')
+			for wl in self.ASPriceLbl:
+				self.TotalPrice+=Decimal(wl.cget('text'))
+			self.ASTotalAmountLbl.config(text=self.TotalPrice)
 		
 		# begin definition of window
 		self.ActSelTL=Toplevel(  background='lavender', borderwidth=1, container = 0, height = 800,takefocus=True,  width=600)
-		self.prices=[self.ed['event']['price_full'],self.ed['event']['price_reduced'],0]
+		self.prices=[self.ed['event']['price_full'],self.ed['event']['price_reduced'],Decimal('0.00')]
 		if mode == BOOK:
 			self.ActSelTL.title("Finestra per la prenotazione dei posti selezionati")
 			self.ActSelTL.config(bg='khaki1')
@@ -431,7 +442,7 @@ class Window(Frame):
 		self.ASPriceLbl=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 # 		self.price=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 		for idx in range(len(self.SelectionBuffer)):
-			self.ASSeatLbl[idx]=Label(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]])
+			self.ASSeatLbl[idx]=Label(self.ActSelTL,font=LARGE_FONT,text=self.seat_name[self.SelectionBuffer[idx]])
 			self.ASSeatLbl[idx].grid(row=2+idx,column=1,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			self.ASPriceLstb[idx]=Listbox(self.ActSelTL,selectmode=BROWSE)
@@ -441,18 +452,29 @@ class Window(Frame):
 			
 	# 		self.event_listBox.bind("<Double-Button-1>", self.ok)
 			self.ASPriceLstb[idx].grid(row=2+idx,column=2,columnspan=1,padx=(5,5),pady=(5,5))
-			self.ASPriceLstb[idx].config(height=3,width=8,font=NORM_FONT)
+			self.ASPriceLstb[idx].config(height=3,width=8,font=LARGE_FONT,exportselection=False)
+			self.ASPriceLstb[idx].select_set(0)
 			self.ASPriceLstb[idx].bind('<<ListboxSelect>>', choose)
 			
-			self.ASPriceLbl[idx]=Label(self.ActSelTL,font=NORM_FONT,text=self.prices[0])
+			self.ASPriceLbl[idx]=Label(self.ActSelTL,font=LARGE_FONT,text=self.prices[0])
 			self.ASPriceLbl[idx].grid(row=2+idx,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			
+			self.toggle_status(self.SelectionBuffer[idx], DISABLE)
+			self.SelectionReset.config(state=DISABLED)
+			
+			
+		self.ASTotalAmountTitle=Label(self.ActSelTL,font=LARGE_FONT,text="Totale prezzo ingressi")
+		self.ASTotalAmountTitle.grid(row=4+idx,column=1,columnspan=2,padx=(5,5),pady=(5,5))
+		
+		self.TotalPrice= self.prices[0]*len(self.SelectionBuffer)
 		
 		
+		self.ASTotalAmountLbl=Label(self.ActSelTL,font=LARGE_FONT,text=self.TotalPrice)
+		self.ASTotalAmountLbl.grid(row=4+idx,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 		
 		
-		self.ASexitBtn=Button(self.ActSelTL,font=NORM_FONT,text='Esci',state=NORMAL,
+		self.ASexitBtn=Button(self.ActSelTL,font=LARGE_FONT,text='Esci',state=NORMAL,
 							width=6,activebackground='white',activeforeground='red', bg='lightgrey',relief=RAISED,
 							command= self.ActSelTL.destroy)
 		self.ASexitBtn.grid(row=3+idx,column=3,columnspan=1,padx=(5,5),pady=(5,5))
@@ -472,6 +494,8 @@ class Window(Frame):
 				print('Posto {} gia selezionato. Nessuna azione'.format(self.seat_name[idx]))
 		elif mode== DESELECT:
 			self.RefreshSeats('one', idx)
+		elif mode==DISABLE:
+			self.btn[idx].config(state=DISABLED)
 	
 	def booking_code_window(self):
 		self.booking_code_w = Toplevel(self)
