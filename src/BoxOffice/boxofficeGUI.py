@@ -9,6 +9,7 @@ for tunneling connection to mysql server if used from remote location
 '''
 # Simple enough, just import everything from tkinter.
 import gi
+from fs.path import join
 gi.require_version('Gtk', '3.0')
 gi.require_version('Atspi', '2.0')
 # from gi.repository import Gtk, Gdk
@@ -28,10 +29,11 @@ from datetime import timedelta
 # from orca.scripts import self_voicing
 from collections import defaultdict
 from dicttoxml import dicttoxml
-from time import sleep
-import code
-from orca.scripts import self_voicing
+# from time import sleep
+# import code
+# from orca.scripts import self_voicing
 from decimal import Decimal
+import time
 
 
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
@@ -420,8 +422,43 @@ class Window(Frame):
 			self.ASTotalAmountLbl.config(text=self.TotalPrice)
 		
 		# begin definition of window
+
+		def ActSelTLBook():
+			users_tmp= self.ed['event']['booking_user'].split(',')
+			price_tmp= self.ed['event']['booking_price'].split(',')
+			datetime_tmp= self.ed['event']['booking_datetime'].split(',')
+			for idx,seat in enumerate(self.SelectionBuffer):
+				self.ed['seat_status'][seat]=BOOKED
+				users_tmp[seat]= '2'
+				price_tmp[seat]= str(self.ASPriceLstb[idx].curselection()[0])
+				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
+				
+			self.ed['event']['booking_status']=','.join(self.ed['seat_status'])
+			self.ed['event']['booking_user']=','.join(users_tmp)
+			self.ed['event']['booking_price']=','.join(price_tmp)
+			self.ed['event']['booking_datetime']=','.join(datetime_tmp)
+			
+			del users_tmp,price_tmp,datetime_tmp
+				
+			"""
+				self.ed['event']['booking_user']=data[4]
+				self.ed['event']['booking_price']=data[5]
+				self.ed['event']['booking_datetime']=data[6]
+			"""
+		## Here we are 20171027 1904	
+
+
+		def ActSelTLExit():
+			if self.SelectionReset['state']==DISABLED:
+				self.SelectionReset.config(state=NORMAL)
+		
+			self.ActSelTL.destroy()
+		
+		## DECLARE , INSTANTIATE AND POPULATE THE TOP LEVEL FRAME FOR SELL, BOOK
+		#
 		self.ActSelTL=Toplevel(  background='lavender', borderwidth=1, container = 0, height = 800,takefocus=True,  width=600)
 		self.prices=[self.ed['event']['price_full'],self.ed['event']['price_reduced'],Decimal('0.00')]
+		gridrow=1
 		if mode == BOOK:
 			self.ActSelTL.title("Finestra per la prenotazione dei posti selezionati")
 			self.ActSelTL.config(bg='khaki1')
@@ -435,15 +472,16 @@ class Window(Frame):
 			self.ActSelTL.config(bg='khaki1')
 			
 		self.ASTitleLbl=Label(self.ActSelTL,text="Posti selezionati",font = LARGE_FONT)
-		self.ASTitleLbl.grid(row=1,column=1,columnspan=3,padx=(5,5),pady=(5,5))
+		self.ASTitleLbl.grid(row=gridrow,column=1,columnspan=3,padx=(5,5),pady=(5,5))
 		
 		self.ASSeatLbl=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 		self.ASPriceLstb=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 		self.ASPriceLbl=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 # 		self.price=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
+		gridrow+=2
 		for idx in range(len(self.SelectionBuffer)):
 			self.ASSeatLbl[idx]=Label(self.ActSelTL,font=LARGE_FONT,text=self.seat_name[self.SelectionBuffer[idx]])
-			self.ASSeatLbl[idx].grid(row=2+idx,column=1,columnspan=1,padx=(5,5),pady=(5,5))
+			self.ASSeatLbl[idx].grid(row=gridrow,column=1,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			self.ASPriceLstb[idx]=Listbox(self.ActSelTL,selectmode=BROWSE)
 			self.ASPriceLstb[idx].insert(END,"Intero")
@@ -451,34 +489,83 @@ class Window(Frame):
 			self.ASPriceLstb[idx].insert(END,"Gratuito")
 			
 	# 		self.event_listBox.bind("<Double-Button-1>", self.ok)
-			self.ASPriceLstb[idx].grid(row=2+idx,column=2,columnspan=1,padx=(5,5),pady=(5,5))
-			self.ASPriceLstb[idx].config(height=3,width=8,font=LARGE_FONT,exportselection=False)
+			self.ASPriceLstb[idx].grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
+			self.ASPriceLstb[idx].config(height=3,width=8,font=NORM_FONT,exportselection=False)
 			self.ASPriceLstb[idx].select_set(0)
 			self.ASPriceLstb[idx].bind('<<ListboxSelect>>', choose)
 			
 			self.ASPriceLbl[idx]=Label(self.ActSelTL,font=LARGE_FONT,text=self.prices[0])
-			self.ASPriceLbl[idx].grid(row=2+idx,column=3,columnspan=1,padx=(5,5),pady=(5,5))
+			self.ASPriceLbl[idx].grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			
 			self.toggle_status(self.SelectionBuffer[idx], DISABLE)
 			self.SelectionReset.config(state=DISABLED)
 			
+			gridrow+=1
 			
+		gridrow+=1
 		self.ASTotalAmountTitle=Label(self.ActSelTL,font=LARGE_FONT,text="Totale prezzo ingressi")
-		self.ASTotalAmountTitle.grid(row=4+idx,column=1,columnspan=2,padx=(5,5),pady=(5,5))
+		self.ASTotalAmountTitle.grid(row=gridrow,column=1,columnspan=2,padx=(5,5),pady=(5,5))
 		
 		self.TotalPrice= self.prices[0]*len(self.SelectionBuffer)
 		
 		
 		self.ASTotalAmountLbl=Label(self.ActSelTL,font=LARGE_FONT,text=self.TotalPrice)
-		self.ASTotalAmountLbl.grid(row=4+idx,column=3,columnspan=1,padx=(5,5),pady=(5,5))
+		self.ASTotalAmountLbl.grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 		
-		
+		gridrow+=2
 		self.ASexitBtn=Button(self.ActSelTL,font=LARGE_FONT,text='Esci',state=NORMAL,
-							width=6,activebackground='white',activeforeground='red', bg='lightgrey',relief=RAISED,
-							command= self.ActSelTL.destroy)
-		self.ASexitBtn.grid(row=3+idx,column=3,columnspan=1,padx=(5,5),pady=(5,5))
+							width=6,activebackground='red',activeforeground='yellow',
+												bg='snow4',fg='snow',
+							command= ActSelTLExit)
+		self.ASexitBtn.grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
+		self.ASBookBtn=Button(self.ActSelTL,font=LARGE_FONT,text='Conferma',state=NORMAL,
+							width=6,activebackground='red',activeforeground='yellow',
+												bg='green',fg='snow',
+							command= ActSelTLBook)
+		self.ASBookBtn.grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
 		
+		## GENERALITIES ENTRY WIDGETS FOR BOOKING MODE
+		if mode == BOOK:
+			gridrow=1
+			self.ASGeneralitiesTitleLbl=Label(self.ActSelTL,text="Riferimenti prenotazione",font = LARGE_FONT)
+			self.ASGeneralitiesTitleLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
+			
+			gridrow+=2
+			
+			self.ASSurnameLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Cognome")
+			self.ASSurnameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+			
+			gridrow+=1
+			self.ASNameLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Nome")
+			self.ASNameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+
+			gridrow+=1
+			self.ASEmailLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Email")
+			self.ASEmailLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+
+			gridrow+=1
+			self.ASPhoneLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Telefono")
+			self.ASPhoneLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+
+			gridrow=1
+			
+			gridrow+=2
+			
+			self.ASSurnameEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Cognome")
+			self.ASSurnameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+			
+			gridrow+=1
+			self.ASNameEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Nome")
+			self.ASNameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+
+			gridrow+=1
+			self.ASEmailEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Email")
+			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+
+			gridrow+=1
+			self.ASPhoneEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Telefono")
+			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 		
 
 		
@@ -682,6 +769,11 @@ class Window(Frame):
 												width=20,activebackground='green',activeforeground='white',
 												command= event_open)
 		self.event_choice_okbtn.grid(row=1,column=2)
+		self.event_choice_exitbtn=Button(self.event_choice_open_w,font=NORM_FONT,text='{}'.format("Cancel"),
+												width=20,activebackground='red',activeforeground='yellow',
+												bg='snow4',fg='snow',
+												command= self.event_choice_open_w.destroy)
+		self.event_choice_exitbtn.grid(row=2,column=2)
 		
 	def RefreshSeats(self,mode=None,idx=None):
 		def setseat(seat,st):
