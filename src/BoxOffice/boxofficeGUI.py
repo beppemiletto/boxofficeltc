@@ -13,7 +13,9 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('Atspi', '2.0')
 # from gi.repository import Gtk, Gdk
 
-from tkinter import *
+from tkinter import Tk,Frame,Label,Listbox,Entry, Toplevel, Button,Text,Menu
+from tkinter import BOTH,CENTER,NW,S,W,N,END
+from tkinter import DISABLED,NORMAL,RAISED,FLAT,RIDGE,SUNKEN,BROWSE,X,Y  # @UnusedImport
 from tkinter import messagebox
 import MySQLdb
 
@@ -76,23 +78,6 @@ SELL = 3
 BOOK = 2
 CLEAR = 0
 
-
-
-class MsgDialog:
-
-	def __init__(self, parent,title,message):
-
-		top = self.top = Toplevel(parent)
-
-		Label(top, text=title).pack()
-		Label(top, text=message).pack()
-
-		b = Button(top, text="Close", command=self.close)
-		b.pack(pady=5)
-
-	def close(self):
-
-		self.top.destroy()
 
 # Here, we are creating our class, Window, and inheriting from the Frame
 # class. Frame is a class from the tkinter module. (see Lib/tkinter/__init__)
@@ -749,9 +734,6 @@ class Window(Frame):
 		def event_open():
 			self.EvCh_TL.destroy()
 			
-			self.msg_w=MsgDialog(self,'Apertura evento',"Apro l'evento scelto")
-
-
 			print("Evento scelto e in apertura = {}".format(self.event))
 			if self.EventDataChanged:
 				pass
@@ -824,7 +806,7 @@ class Window(Frame):
 						print(self.ed['booking'][str(data[0]).zfill(6)])
 # 			sleep(5)						
 			
-			self.msg_w.close()
+
 			## Main refresh of application data for event opening
 			self.RefreshSeats(mode='full')
 			self.RefreshEventInfo(mode='full')
@@ -993,9 +975,33 @@ class Window(Frame):
 			self.LblBookingCodeTitle= Label(self.FrameBooking,height = 3,width=25,font=NORM_FONT,text="Non ci sono \nprenotazioni attive \nper questo evento")
 			self.LblBookingCodeTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=4,sticky=W)
 	def GetBooking(self,code,mode=None):
+#TODO:  Disabilitare il button Prenota per evitare selezioni con doppie prenotazioni dello stesso posto!
 		print("Elaboro la prenotazione codice {}".format(code))
-		pass
+		booking_prices=[]
+		if len(self.SelectionBuffer):
+			title = "Selezione posti non vuota"
+			question ="""Hai scelto di aprire una prenotazione 
+			ma hai dei posti selezionati in precedenza. 
+			Vuoi aggiungere i posti della prenotazione
+			 a quelli selezionati prima?"""
+			answer = messagebox.askquestion(title,question )
+			if answer == 'no':
+				self.SelectionBuffer=[]
+			else:
+				for seat in self.SelectionBuffer:
+					booking_prices.append(FULL_PRICE)
+		
+		booking_seats=self.ed['booking'][code][2].split(',')
 
+		for seat in booking_seats:
+			if seat !='':
+				seat_idx = self.seat_name.index(seat.split('$')[0])
+				self.SelectionBuffer.append(seat_idx)
+				booking_prices.append(int(seat.split('$')[1]))
+			else:
+				pass
+		self.UpdateSelectionBufferText()	
+	
 	def client_exit(self):
 		try:
 			self.mysql.close()
@@ -1006,9 +1012,7 @@ class Window(Frame):
 		exit()
 		
 if __name__ == '__main__':
-	
-	# La timezone UTC e' gia' pronta
-	utc = pytz.utc
+
 	
 	# Crea una time zone
 	rome = pytz.timezone("Europe/Rome")	
