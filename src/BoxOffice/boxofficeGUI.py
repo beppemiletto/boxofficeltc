@@ -57,9 +57,9 @@ BOOKED 		= '2'
 SOLD		= '3'
 
 # PROCES CODES
-FREE_PRICE = 0
-REDUCED_PRICE = 1
-FULL_PRICE = 2
+FREE_PRICE 		= 0
+REDUCED_PRICE 	= 1
+FULL_PRICE 		= 2
 
 
 # RUNNING MODE SET 
@@ -74,9 +74,10 @@ SELECT 		= 1
 DESELECT 	= 0
 
 # modes for TopLevel actions with selection
-SELL = 3
-BOOK = 2
-CLEAR = 0
+SELLABOOK 	= 4
+SELL 		= 3
+BOOK 		= 2
+CLEAR 		= 0
 
 
 # Here, we are creating our class, Window, and inheriting from the Frame
@@ -94,16 +95,6 @@ class Window(Frame):
 		## Instantiate the session open flag used to check the session status
 		## Initialize to False, become true at event open, False again when event session is closed clear
 		self.session_open = False
-		## Instantiate the event data dictionary to keep event's data for session
-		## structure:
-		## ['event'] = dictionary of event info 
-		self.ed= defaultdict(dict)
-		# 		# Open the ssh tunnel on port 3306 for MySQL connection	
-# 		self.ssh_tunnel=MySQL_Ssh_Tunnel('teatrocambiano.sytes.net')
-# 		self.ssh_tunnel.ssh_start()
-		
-		
-
 		
 		# parameters that you want to send through the Frame class. 
 		Frame.__init__(self, master)   
@@ -326,7 +317,7 @@ class Window(Frame):
 		self.FrameBooking.grid(columnspan=1,rowspan=2)
 		
 		# Finestra con le prenotazioni attive
-		self.BookingTitle= Label(self.FrameBooking,height = 1,width=30,font=HUGE_FONT,text="Prenotazioni attive")
+		self.BookingTitle= Label(self.FrameBooking,height = 1,width=30,font=HUGE_FONT,text="Prenotazioni evento")
 		self.BookingTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=5,sticky=N)		
 
 		## CREATING A MENU FOR ROOT WINDOW ####################################
@@ -540,6 +531,10 @@ class Window(Frame):
 			self.ActSelTL.title("Finestra per la vendita dei posti selezionati")
 			self.ActSelTL.config(bg='khaki1')
 			self.price=[self.prices[0] for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
+		elif mode == SELLABOOK:
+			self.ActSelTL.title("Finestra per la vendita dei posti prenotati")
+			self.ActSelTL.config(bg='khaki1')
+			self.price=[self.prices[0] for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 		else:
 			self.ActSelTL.title("Finestra per SPARE dei posti selezionati")
 			self.ActSelTL.config(bg='khaki1')
@@ -563,7 +558,11 @@ class Window(Frame):
 			
 			
 	# 		self.EvChEventLbx.bind("<Double-Button-1>", self.ok)
-			default_price=FULL_PRICE
+			if mode == SELL or mode == BOOK:
+				default_price=FULL_PRICE
+			elif mode == SELLABOOK:
+				default_price=self.booking_prices[idx]
+				
 			self.ASPriceLstb[idx].grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
 			self.ASPriceLstb[idx].config(height=3,width=8,font=NORM_FONT,exportselection=False)
 			self.ASPriceLstb[idx].select_set(default_price)
@@ -675,6 +674,55 @@ class Window(Frame):
 			self.ASPhoneEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Telefono")
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 		
+		elif mode==SELLABOOK:
+			gridrow=1
+			self.ASGeneralitiesTitleLbl=Label(self.ActSelTL,text="Riferimenti prenotazione {}".format(self.SellingBookingCode),font = LARGE_FONT)
+			self.ASGeneralitiesTitleLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
+			
+			gridrow+=2
+			
+			self.ASSurnameLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Cognome")
+			self.ASSurnameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+			
+			gridrow+=1
+			self.ASNameLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Nome")
+			self.ASNameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+
+			gridrow+=1
+			self.ASEmailLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Email")
+			self.ASEmailLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+
+			gridrow+=1
+			self.ASPhoneLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Telefono")
+			self.ASPhoneLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+
+			gridrow=1
+			
+			gridrow+=2
+			
+			self.ASSurnameEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Cognome")
+			self.ASSurnameEnt.insert(END, self.ed['booking'][self.SellingBookingCode][4])
+			self.ASSurnameEnt.config(state=DISABLED)
+			self.ASSurnameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+			
+			gridrow+=1
+			self.ASNameEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Nome")
+			self.ASNameEnt.insert(END, self.ed['booking'][self.SellingBookingCode][3])
+			self.ASNameEnt.config(state=DISABLED)
+			self.ASNameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+
+			gridrow+=1
+			self.ASEmailEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Email")
+			self.ASEmailEnt.insert(END, self.ed['booking'][self.SellingBookingCode][5])
+			self.ASEmailEnt.config(state=DISABLED)
+			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+
+			gridrow+=1
+			self.ASPhoneEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Telefono")
+			self.ASPhoneEnt.insert(END, self.ed['booking'][self.SellingBookingCode][8])
+			self.ASPhoneEnt.config(state=DISABLED)
+			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+		
 
 		
 	def toggle_status(self,idx,mode=None):
@@ -733,6 +781,14 @@ class Window(Frame):
 				pass
 		def event_open():
 			self.EvCh_TL.destroy()
+			
+			## Instantiate the event data dictionary to keep event's data for session
+			## structure:
+			## ['event'] = dictionary of event info 
+			try:
+				self.ed= defaultdict(dict)
+			except NameError:
+				self.ed= defaultdict(dict)
 			
 			print("Evento scelto e in apertura = {}".format(self.event))
 			if self.EventDataChanged:
@@ -928,6 +984,12 @@ class Window(Frame):
 		
 
 	def RefreshBooking(self, mode=None):
+		for widget in self.FrameBooking.winfo_children():
+			if widget ==self.BookingTitle:
+				pass
+			else:
+				widget.destroy()
+		#TODO: Cleanup the message "No booking when the first booking is inserted"
 		if self.ed['booking']['quantity']:
 			self.LblBookingCodeTitle= Label(self.FrameBooking,height = 1,width=8,font=SMALL_FONT,text="Codice")
 			self.LblBookingCodeTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
@@ -950,8 +1012,30 @@ class Window(Frame):
 			self.LblBookingSeats=[0 for x in range(self.ed['booking']['quantity'])]  # @UnusedVariable
 			idx=0	
 			for key,booking in sorted(self.ed['booking'].items()):
-				if not key== 'quantity':
-					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,
+				if not key== 'quantity' and not booking[9]:
+					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=NORMAL,bg='green2',fg='blue4',
+												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
+					self.BtnBookingCode[idx].grid(row=3+3*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = 1,width=15,
+												font=SMALL_FONT,text=booking[4])
+					self.LblBookingSurname[idx].grid(row=3+3*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingName[idx]= Label(self.FrameBooking,height = 1,width=15,
+												font=SMALL_FONT,text=booking[3])
+					self.LblBookingName[idx].grid(row=3+3*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingPhone[idx]= Label(self.FrameBooking,height = 1,width=15,
+												font=SMALL_FONT,text=booking[8])
+					self.LblBookingPhone[idx].grid(row=3+3*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingDate[idx]= Label(self.FrameBooking,height = 1,width=12,
+												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
+					self.LblBookingDate[idx].grid(row=3+3*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = 3,width=20,
+												font=SMALL_FONT,text=booking[2])
+					self.LblBookingSeats[idx].grid(row=3+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					
+					idx+=1
+			for key,booking in sorted(self.ed['booking'].items()):
+				if not key== 'quantity' and booking[9]:
+					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=DISABLED,bg='IndianRed4',fg='snow2',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
 					self.BtnBookingCode[idx].grid(row=3+3*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = 1,width=15,
@@ -972,12 +1056,13 @@ class Window(Frame):
 					
 					idx+=1
 		else:
-			self.LblBookingCodeTitle= Label(self.FrameBooking,height = 3,width=25,font=NORM_FONT,text="Non ci sono \nprenotazioni attive \nper questo evento")
-			self.LblBookingCodeTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=4,sticky=W)
+			self.LblBookingFrameTitle= Label(self.FrameBooking,height = 3,width=25,font=NORM_FONT,text="Non ci sono \nprenotazioni attive \nper questo evento")
+			self.LblBookingFrameTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=4,sticky=W)
 	def GetBooking(self,code,mode=None):
+		self.SellingBookingCode=code
 #TODO:  Disabilitare il button Prenota per evitare selezioni con doppie prenotazioni dello stesso posto!
 		print("Elaboro la prenotazione codice {}".format(code))
-		booking_prices=[]
+		self.booking_prices=[]
 		if len(self.SelectionBuffer):
 			title = "Selezione posti non vuota"
 			question ="""Hai scelto di aprire una prenotazione 
@@ -989,7 +1074,7 @@ class Window(Frame):
 				self.SelectionBuffer=[]
 			else:
 				for seat in self.SelectionBuffer:
-					booking_prices.append(FULL_PRICE)
+					self.booking_prices.append(FULL_PRICE)
 		
 		booking_seats=self.ed['booking'][code][2].split(',')
 
@@ -997,10 +1082,13 @@ class Window(Frame):
 			if seat !='':
 				seat_idx = self.seat_name.index(seat.split('$')[0])
 				self.SelectionBuffer.append(seat_idx)
-				booking_prices.append(int(seat.split('$')[1]))
+				self.booking_prices.append(int(seat.split('$')[1]))
 			else:
 				pass
-		self.UpdateSelectionBufferText()	
+		self.UpdateSelectionBufferText()
+#TODO: Aggiungere aggiornamento griglia sala per segnare gialli i posti della prenotazione		
+		self.ActionOnSelection(mode = SELLABOOK)
+			
 	
 	def client_exit(self):
 		try:
