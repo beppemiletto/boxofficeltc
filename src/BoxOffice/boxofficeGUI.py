@@ -14,7 +14,7 @@ gi.require_version('Atspi', '2.0')
 # from gi.repository import Gtk, Gdk
 
 from tkinter import Tk,Frame,Label,Listbox,Entry, Toplevel, Button,Text,Menu
-from tkinter import BOTH,CENTER,NW,S,W,N,END
+from tkinter import BOTH,CENTER,NW,S,W,N,E,END
 from tkinter import DISABLED,NORMAL,RAISED,FLAT,RIDGE,SUNKEN,BROWSE,X,Y  # @UnusedImport
 from tkinter import messagebox
 import MySQLdb
@@ -28,7 +28,7 @@ from PIL import Image
 from button_array_location import rows_name,seats  # @UnresolvedImport
 from datetime import timedelta
 # from orca.scripts import self_voicing
-from collections import defaultdict
+from collections import defaultdict,Counter
 from dicttoxml import dicttoxml
 # from time import sleep
 # import code
@@ -41,9 +41,9 @@ import time, pytz
 ## GLOBAL SETTINGS AND VARIABLE
 
 # FONTS FOR GUI
-HUGE_FONT = ("DejaVuSansMono", 16)
-LARGE_FONT = ("DejaVuSansMono", 12)
-NORM_FONT = ("DejaVuSansMono", 9)
+HUGE_FONT = ("DejaVuSansMono", 14)
+LARGE_FONT = ("DejaVuSansMono", 10)
+NORM_FONT = ("DejaVuSansMono", 8)
 SMALL_FONT = ("DejaVuSansMono", 7)
 # HUGE_FONT = ("Verdana", 16)
 # LARGE_FONT = ("Verdana", 12)
@@ -314,11 +314,22 @@ class Window(Frame):
 		
 		self.FrameBooking=Frame(self.BookingFrameGUI,bg='lightgreen')
 		self.FrameBooking.grid(row=1,column=3,padx=(5,5),pady=(5,5))	
-		self.FrameBooking.grid(columnspan=1,rowspan=2)
+		self.FrameBooking.grid(columnspan=1,rowspan=3,sticky=N+E)
 		
 		# Finestra con le prenotazioni attive
 		self.BookingTitle= Label(self.FrameBooking,height = 1,width=30,font=HUGE_FONT,text="Prenotazioni evento")
 		self.BookingTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=5,sticky=N)		
+
+		## CREATE THE FRAME FOR TOTALIZERS 
+		##
+		
+		self.FrameTotalizers=Frame(self.BookingFrameGUI,bg='lightgreen')
+		self.FrameTotalizers.grid(row=3,column=1,padx=(5,5),pady=(5,0))	
+		self.FrameTotalizers.grid(columnspan=2,rowspan=1,sticky=N+E)
+		
+		# Finestra con le prenotazioni attive
+		self.TotalizersTitle= Label(self.FrameTotalizers,height = 1,width=30,font=HUGE_FONT,text="Totalizzatori")
+		self.TotalizersTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=4,sticky=E+N)		
 
 		## CREATING A MENU FOR ROOT WINDOW ####################################
 		## FILE AND EDIT
@@ -365,6 +376,10 @@ class Window(Frame):
 		
 	def sell_selections(self):
 		print("Vendo posti selezionati")
+		if len(self.SelectionBuffer):
+			self.ActionOnSelection(mode=SELL)
+		else:
+			messagebox.showerror("NESSUN POSTO SELEZIONATO","Hai richiesto l'azione di PRENOTAZIONE \nche prevede di aver selezionato dei posti su cui affettuarla.\n")
 	def book_selections(self):
 		print("Prenoto posti selezionati")
 		if len(self.SelectionBuffer):
@@ -412,7 +427,79 @@ class Window(Frame):
 			self.ASTotalReducedPriceLbl.config(text=self.TotalReducedPrice)
 			self.ASTotalFreePriceLbl.config(text=self.TotalFreePrice)
 		
-		# begin definition of window
+		def ActSelTLSell():
+			users_tmp= self.ed['event']['booking_user'].split(',')
+			price_tmp= self.ed['event']['booking_price'].split(',')
+			datetime_tmp= self.ed['event']['booking_datetime'].split(',')
+			for idx,seat in enumerate(self.SelectionBuffer):
+				self.ed['seat_status'][seat]=SOLD
+				users_tmp[seat]= '2'
+				price_tmp[seat]= str(self.ASPriceLstb[idx].curselection()[0])
+				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
+				
+			self.ed['event']['booking_status']=','.join(self.ed['seat_status'])
+			self.ed['event']['booking_user']=','.join(users_tmp)
+			self.ed['event']['booking_price']=','.join(price_tmp)
+			self.ed['event']['booking_datetime']=','.join(datetime_tmp)
+			
+			del users_tmp,datetime_tmp
+			
+					
+			sql_cmd = """UPDATE `booking_event` 
+			SET `booking_status`='{}',
+			`booking_user`='{}',
+			`booking_price`='{}',`booking_datetime`='{}'
+			WHERE `booking_event`.`id` = {};""".format(self.ed['event']['booking_status'],self.ed['event']['booking_user'],self.ed['event']['booking_price'],self.ed['event']['booking_datetime'],self.ed['event']['id'])
+			
+			self.EventDataChanged=True			
+			try:
+				self.mysqlcursor.execute(sql_cmd)
+				self.mysql.commit()
+				self.EventDataChanged=False
+			except:
+				self.mysql.rollback()
+
+			try:
+				if self.SellingBookingCode:
+					sql_cmd = """UPDATE `booking_booking` 
+					SET `book_sold`= 1 
+					WHERE `booking_booking`.`id` = {};""".format(self.ed['booking'][self.SellingBookingCode][0])
+					
+					print(sql_cmd)
+					self.EventDataChanged=True
+					try:
+						self.mysqlcursor.execute(sql_cmd)
+						self.mysql.commit()
+						self.EventDataChanged=False
+					except:
+						self.mysql.rollback()
+					finally:
+						try:
+							sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.ed['event']['id']))
+							result=self.mysqlcursor.execute(sql_cmd)
+							if result < 1:
+								self.ed['booking']['quantity']=result	
+							else:
+								self.ed['booking']['quantity']=result
+								for idx in range(result):  # @UnusedVariable
+									data=self.mysqlcursor.fetchone()
+									self.ed['booking'][str(data[0]).zfill(6)]=data	
+									print(self.ed['booking'][str(data[0]).zfill(6)])
+
+								self.RefreshBooking(mode='full')
+						except:
+							pass
+						print("Mysql executed")
+			except:
+				pass			
+			self.RefreshSeats(mode='full', idx=None)
+			self.SelectionBuffer=[]
+			self.UpdateSelectionBufferText()
+
+			## Finally exit from TopLevel and Destroy it
+			ActSelTLExit()
+			
+					
 
 		def ActSelTLBook():
 			
@@ -511,6 +598,9 @@ class Window(Frame):
 
 
 		def ActSelTLExit():
+			if self.EventDataChanged:
+				print('I dati della sessione non sono stati aggiornati sul database!!!')
+				pass
 			if self.SelectionReset['state']==DISABLED:
 				self.SelectionReset.config(state=NORMAL)
 		
@@ -548,7 +638,7 @@ class Window(Frame):
 # 		self.price=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 		gridrow+=2
 		for idx in range(len(self.SelectionBuffer)):
-			self.ASSeatLbl[idx]=Label(self.ActSelTL,font=LARGE_FONT,text=self.seat_name[self.SelectionBuffer[idx]])
+			self.ASSeatLbl[idx]=Label(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]])
 			self.ASSeatLbl[idx].grid(row=gridrow,column=1,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			self.ASPriceLstb[idx]=Listbox(self.ActSelTL,selectmode=BROWSE)
@@ -564,11 +654,11 @@ class Window(Frame):
 				default_price=self.booking_prices[idx]
 				
 			self.ASPriceLstb[idx].grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
-			self.ASPriceLstb[idx].config(height=3,width=8,font=NORM_FONT,exportselection=False)
+			self.ASPriceLstb[idx].config(height=3,width=8,font=SMALL_FONT,exportselection=False)
 			self.ASPriceLstb[idx].select_set(default_price)
 			self.ASPriceLstb[idx].bind('<<ListboxSelect>>', choose)
 			
-			self.ASPriceLbl[idx]=Label(self.ActSelTL,font=LARGE_FONT,text=self.prices[default_price])
+			self.ASPriceLbl[idx]=Label(self.ActSelTL,font=NORM_FONT,text=self.prices[default_price])
 			self.ASPriceLbl[idx].grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			
@@ -603,29 +693,38 @@ class Window(Frame):
 				self.TotalFreePrice+=1
 				
 		
-		self.ASTotalFullPriceTitle=Label(self.ActSelTL,font=LARGE_FONT,text="Totale ingressi INTERI")
+		self.ASTotalFullPriceTitle=Label(self.ActSelTL,font=NORM_FONT,text="Totale ingressi INTERI")
 		self.ASTotalFullPriceTitle.grid(row=gridrow,column=1,columnspan=2,padx=(5,5),pady=(5,5))
-		self.ASTotalFullPriceLbl=Label(self.ActSelTL,font=LARGE_FONT,text=self.TotalFullPrice)
+		self.ASTotalFullPriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalFullPrice)
 		self.ASTotalFullPriceLbl.grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 		gridrow+=1
-		self.ASTotalReducedPriceTitle=Label(self.ActSelTL,font=LARGE_FONT,text="Totale ingressi RIDOTTI")
+		self.ASTotalReducedPriceTitle=Label(self.ActSelTL,font=NORM_FONT,text="Totale ingressi RIDOTTI")
 		self.ASTotalReducedPriceTitle.grid(row=gridrow,column=1,columnspan=2,padx=(5,5),pady=(5,5))
-		self.ASTotalReducedPriceLbl=Label(self.ActSelTL,font=LARGE_FONT,text=self.TotalReducedPrice)
+		self.ASTotalReducedPriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalReducedPrice)
 		self.ASTotalReducedPriceLbl.grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 		gridrow+=1
-		self.ASTotalFreePriceTitle=Label(self.ActSelTL,font=LARGE_FONT,text="Totale ingressi GRATUITI")
+		self.ASTotalFreePriceTitle=Label(self.ActSelTL,font=NORM_FONT,text="Totale ingressi GRATUITI")
 		self.ASTotalFreePriceTitle.grid(row=gridrow,column=1,columnspan=2,padx=(5,5),pady=(5,5))
-		self.ASTotalFreePriceLbl=Label(self.ActSelTL,font=LARGE_FONT,text=self.TotalFreePrice)
+		self.ASTotalFreePriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalFreePrice)
 		self.ASTotalFreePriceLbl.grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 
 
 		
 		gridrow+=2
-		self.ASBookBtn=Button(self.ActSelTL,font=LARGE_FONT,text='Conferma',state=NORMAL,
-							width=6,activebackground='red',activeforeground='yellow',
-							bg='green',fg='snow',command= ActSelTLBook)
-		self.ASBookBtn.grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
-		self.ASexitBtn=Button(self.ActSelTL,font=LARGE_FONT,text='Esci',state=NORMAL,
+		if mode == SELLABOOK or mode == SELL:
+			btn_text = 'Conferma Vendita'
+			self.ASSellBtn=Button(self.ActSelTL,font=NORM_FONT,text=btn_text,state=NORMAL,
+					width=25,activebackground='red',activeforeground='yellow',
+					bg='green',fg='snow',command= ActSelTLSell)
+			self.ASSellBtn.grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
+		elif mode == BOOK:
+			btn_text = 'Registra Prenotazione'
+
+			self.ASBookBtn=Button(self.ActSelTL,font=NORM_FONT,text=btn_text,state=NORMAL,
+								width=25,activebackground='red',activeforeground='yellow',
+								bg='green',fg='snow',command= ActSelTLBook)
+			self.ASBookBtn.grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
+		self.ASexitBtn=Button(self.ActSelTL,font=NORM_FONT,text='Esci',state=NORMAL,
 							width=6,activebackground='red',activeforeground='yellow',
 												bg='snow4',fg='snow',
 							command= ActSelTLExit)
@@ -640,38 +739,38 @@ class Window(Frame):
 			
 			gridrow+=2
 			
-			self.ASSurnameLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Cognome")
+			self.ASSurnameLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Cognome")
 			self.ASSurnameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 			
 			gridrow+=1
-			self.ASNameLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Nome")
+			self.ASNameLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Nome")
 			self.ASNameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASEmailLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Email")
+			self.ASEmailLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Email")
 			self.ASEmailLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASPhoneLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Telefono")
+			self.ASPhoneLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Telefono")
 			self.ASPhoneLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 
 			gridrow=1
 			
 			gridrow+=2
 			
-			self.ASSurnameEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Cognome")
+			self.ASSurnameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Cognome")
 			self.ASSurnameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			gridrow+=1
-			self.ASNameEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Nome")
+			self.ASNameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Nome")
 			self.ASNameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASEmailEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Email")
+			self.ASEmailEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Email")
 			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASPhoneEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Telefono")
+			self.ASPhoneEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Telefono")
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 		
 		elif mode==SELLABOOK:
@@ -681,44 +780,44 @@ class Window(Frame):
 			
 			gridrow+=2
 			
-			self.ASSurnameLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Cognome")
+			self.ASSurnameLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Cognome")
 			self.ASSurnameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 			
 			gridrow+=1
-			self.ASNameLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Nome")
+			self.ASNameLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Nome")
 			self.ASNameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASEmailLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Email")
+			self.ASEmailLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Email")
 			self.ASEmailLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASPhoneLbl=Label(self.ActSelTL,font=LARGE_FONT,width=10,text="Telefono")
+			self.ASPhoneLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Telefono")
 			self.ASPhoneLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 
 			gridrow=1
 			
 			gridrow+=2
 			
-			self.ASSurnameEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Cognome")
+			self.ASSurnameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Cognome")
 			self.ASSurnameEnt.insert(END, self.ed['booking'][self.SellingBookingCode][4])
 			self.ASSurnameEnt.config(state=DISABLED)
 			self.ASSurnameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			gridrow+=1
-			self.ASNameEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Nome")
+			self.ASNameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Nome")
 			self.ASNameEnt.insert(END, self.ed['booking'][self.SellingBookingCode][3])
 			self.ASNameEnt.config(state=DISABLED)
 			self.ASNameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASEmailEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Email")
+			self.ASEmailEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Email")
 			self.ASEmailEnt.insert(END, self.ed['booking'][self.SellingBookingCode][5])
 			self.ASEmailEnt.config(state=DISABLED)
 			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASPhoneEnt=Entry(self.ActSelTL,font=LARGE_FONT,width=30,text="Telefono")
+			self.ASPhoneEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Telefono")
 			self.ASPhoneEnt.insert(END, self.ed['booking'][self.SellingBookingCode][8])
 			self.ASPhoneEnt.config(state=DISABLED)
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
@@ -727,14 +826,17 @@ class Window(Frame):
 		
 	def toggle_status(self,idx,mode=None):
 		if mode == SELECT:
-			if idx not in self.SelectionBuffer:
-				print('Selezionato posto {}.'.format(self.seat_name[idx]))
-				self.btn[idx].config(relief=SUNKEN,bg='yellow')
-				self.SelectionBuffer.append(idx)
-				self.UpdateSelectionBufferText()
-				# FLAT , RAISED, SUNKEN, GROOVE, RIDGE
+			if len(self.SelectionBuffer)<15:
+				if idx not in self.SelectionBuffer:
+					print('Selezionato posto {}.'.format(self.seat_name[idx]))
+					self.btn[idx].config(relief=SUNKEN,bg='yellow')
+					self.SelectionBuffer.append(idx)
+					self.UpdateSelectionBufferText()
+					# FLAT , RAISED, SUNKEN, GROOVE, RIDGE
+				else:
+					messagebox.showwarning('Posto selezionato in precedenza', 'Hai riselezionato un posto. Se desideri deselezionarlo usa il pulsante Reset Selezione.')
 			else:
-				print('Posto {} gia selezionato. Nessuna azione'.format(self.seat_name[idx]))
+				messagebox.showwarning('Massimo dei posti selezionati', 'Non puoi effettuare selezioni maggiori di 15 posti.')
 		elif mode== DESELECT:
 			self.RefreshSeats('one', idx)
 		elif mode==DISABLE:
@@ -781,19 +883,17 @@ class Window(Frame):
 				pass
 		def event_open():
 			self.EvCh_TL.destroy()
-			
-			## Instantiate the event data dictionary to keep event's data for session
-			## structure:
-			## ['event'] = dictionary of event info 
-			try:
-				self.ed= defaultdict(dict)
-			except NameError:
-				self.ed= defaultdict(dict)
-			
 			print("Evento scelto e in apertura = {}".format(self.event))
 			if self.EventDataChanged:
-				pass
+				messagebox.showwarning('Apertura evento con dati non salvati','Stai aprendo un nuovo evento ma i dati di quello precedente non sono completamente salvati.Puoi procedere solo dopo aver salvato i dati di questa sessione')
 			else:
+				## Instantiate the event data dictionary to keep event's data for session
+				## structure:
+				## ['event'] = dictionary of event info 
+				try:
+					self.ed= defaultdict(dict)
+				except NameError:
+					self.ed= defaultdict(dict)
 				# query booking_event - heavy priority data
 				# putting information on ed (event dictionary) in the inner event dictionary
 				sql_cmd="SELECT * FROM booking_event where booking_event.id = {};".format(int(self.ev_id))
@@ -860,6 +960,10 @@ class Window(Frame):
 						data=self.mysqlcursor.fetchone()
 						self.ed['booking'][str(data[0]).zfill(6)]=data	
 						print(self.ed['booking'][str(data[0]).zfill(6)])
+						
+				# Initialize opening Totalizers
+				Prices=Counter(self.ed['event']['booking_status'])
+				
 # 			sleep(5)						
 			
 
@@ -989,7 +1093,7 @@ class Window(Frame):
 				pass
 			else:
 				widget.destroy()
-		#TODO: Cleanup the message "No booking when the first booking is inserted"
+		
 		if self.ed['booking']['quantity']:
 			self.LblBookingCodeTitle= Label(self.FrameBooking,height = 1,width=8,font=SMALL_FONT,text="Codice")
 			self.LblBookingCodeTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
@@ -1060,7 +1164,7 @@ class Window(Frame):
 			self.LblBookingFrameTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=4,sticky=W)
 	def GetBooking(self,code,mode=None):
 		self.SellingBookingCode=code
-#TODO:  Disabilitare il button Prenota per evitare selezioni con doppie prenotazioni dello stesso posto!
+
 		print("Elaboro la prenotazione codice {}".format(code))
 		self.booking_prices=[]
 		if len(self.SelectionBuffer):
@@ -1082,11 +1186,13 @@ class Window(Frame):
 			if seat !='':
 				seat_idx = self.seat_name.index(seat.split('$')[0])
 				self.SelectionBuffer.append(seat_idx)
+# 				self.RefreshSeats('one', seat_idx)
 				self.booking_prices.append(int(seat.split('$')[1]))
 			else:
 				pass
 		self.UpdateSelectionBufferText()
-#TODO: Aggiungere aggiornamento griglia sala per segnare gialli i posti della prenotazione		
+
+			
 		self.ActionOnSelection(mode = SELLABOOK)
 			
 	
