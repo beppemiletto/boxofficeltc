@@ -460,18 +460,19 @@ class Window(Frame):
 			self.ASTotalFreePriceLbl.config(text=self.TotalTransactionFreePrice)
 		
 		def ActSelTLSell():
+			from builtins import str
 			users_tmp= self.AAAed['event']['booking_user'].split(',')
-			price_tmp= self.AAAed['event']['booking_price'].split(',')
+# 			price_tmp= self.AAAed['event']['booking_price'].split(',')
 			datetime_tmp= self.AAAed['event']['booking_datetime'].split(',')
 			for idx,seat in enumerate(self.SelectionBuffer):
 				self.AAAed['seat_status'][seat]=SOLD
 				users_tmp[seat]= '2'
-				price_tmp[seat]= str(self.ASPriceLstb[idx].curselection()[0])
+				self.AAAed['seat_prices'][seat]= str(self.ASPriceLstb[idx].curselection()[0])
 				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
 				
 			self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
 			self.AAAed['event']['booking_user']=','.join(users_tmp)
-			self.AAAed['event']['booking_price']=','.join(price_tmp)
+			self.AAAed['event']['booking_price']=','.join(self.AAAed['seat_prices'])
 			self.AAAed['event']['booking_datetime']=','.join(datetime_tmp)
 			
 			del users_tmp,datetime_tmp
@@ -535,6 +536,12 @@ class Window(Frame):
 															str(FREE_PRICE):self.TotalFreePrice})
 			self.AAAed['Totals']['session_revenue']+=self.TotalPrice
 			
+			self.AAAed['Totals']['totals_price'][str(FULL_PRICE)]=self.AAAed['Totals']['open_price'][str(FULL_PRICE)]+self.TotalSoldFullPrice
+			self.AAAed['Totals']['totals_price'][str(REDUCED_PRICE)]=self.AAAed['Totals']['open_price'][str(REDUCED_PRICE)]+self.TotalSoldReducedPrice
+			self.AAAed['Totals']['totals_price'][str(FREE_PRICE)]=self.AAAed['Totals']['open_price'][str(FREE_PRICE)]+self.TotalFreePrice
+			
+			self.AAAed['Totals']['totals_revenue']=self.AAAed['Totals']['open_revenue']+self.AAAed['Totals']['session_revenue']
+			
 						
 			self.RefreshSeats(mode='full', idx=None)
 			self.SelectionBuffer=[]
@@ -547,6 +554,18 @@ class Window(Frame):
 					
 
 		def ActSelTLBook():
+			##check whether the Surname at least has been provided for recording 
+			## the Booking in case no Surname in Entry will go back
+			cstr_surname = self.ASSurnameEnt.get()
+			if len(cstr_surname)< 2:
+				if len(cstr_surname)==0:
+					message= "Non hai introdotto nessun Cognome di riferimento per la prenotazione. Il Cognome va inserito obbligatoriamente."
+				else:
+					message= "Il valore '{}' per il Cognome di riferimento per la prenotazione non e' valido. Almeno le iniziali Cognome Nome.".format(cstr_surname)
+				messagebox.showerror("Indicazioni per la prenotazione insufficienti", message)
+				ActSelTLExit()
+				return
+			
 			
 			## booking_event data change for booking 
 			"""
@@ -555,17 +574,17 @@ class Window(Frame):
 				self.AAAed['event']['booking_datetime']=data[6]
 			"""
 			users_tmp= self.AAAed['event']['booking_user'].split(',')
-			price_tmp= self.AAAed['event']['booking_price'].split(',')
+# 			price_tmp= self.AAAed['seat_prices']
 			datetime_tmp= self.AAAed['event']['booking_datetime'].split(',')
 			for idx,seat in enumerate(self.SelectionBuffer):
 				self.AAAed['seat_status'][seat]=BOOKED
 				users_tmp[seat]= '2'
-				price_tmp[seat]= str(self.ASPriceLstb[idx].curselection()[0])
+				self.AAAed['seat_prices'][seat]= str(self.ASPriceLstb[idx].curselection()[0])
 				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
 				
 			self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
 			self.AAAed['event']['booking_user']=','.join(users_tmp)
-			self.AAAed['event']['booking_price']=','.join(price_tmp)
+			self.AAAed['event']['booking_price']=','.join(self.AAAed['seat_prices'])
 			self.AAAed['event']['booking_datetime']=','.join(datetime_tmp)
 			
 			del users_tmp,datetime_tmp
@@ -590,9 +609,9 @@ class Window(Frame):
 			created_date_tmp = time.strftime('%Y-%m-%d %H:%M:%S')
 			seats_booked_tmp = ''
 			for idx,seat in enumerate(self.SelectionBuffer):
-				seats_booked_tmp+='{}${},'.format(self.seat_name[seat],price_tmp[idx])
+				seats_booked_tmp+='{}${},'.format(self.seat_name[seat],self.AAAed['seat_prices'][idx])
+			
 			cstr_name = self.ASNameEnt.get()
-			cstr_surname = self.ASSurnameEnt.get()
 			cstr_email = self.ASEmailEnt.get()
 			cstr_phone = self.ASPhoneEnt.get()
 			event_tmp = self.AAAed['event']['id']
@@ -1248,7 +1267,9 @@ class Window(Frame):
 			self.Totalizers.set(self.TotalizersSession,'full_price',self.AAAed['Totals']['session_price'][str(FULL_PRICE)])		
 			self.Totalizers.set(self.TotalizersSession,'reduced_price',self.AAAed['Totals']['session_price'][str(REDUCED_PRICE)])		
 			self.Totalizers.set(self.TotalizersSession,'free_price',self.AAAed['Totals']['session_price'][str(FREE_PRICE)])		
-			self.Totalizers.set(self.TotalizersSession,'revenue',self.AAAed['Totals']['session_revenue'])	
+			self.Totalizers.set(self.TotalizersSession,'revenue',self.AAAed['Totals']['session_revenue'])
+			
+				
 			
 			self.Totalizers.set(self.TotalizersTotals,'full_price',self.AAAed['Totals']['totals_price'][str(FULL_PRICE)])		
 			self.Totalizers.set(self.TotalizersTotals,'reduced_price',self.AAAed['Totals']['totals_price'][str(REDUCED_PRICE)])		
