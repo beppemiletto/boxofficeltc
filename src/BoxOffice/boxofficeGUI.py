@@ -102,6 +102,11 @@ class Window(Frame):
 		## Initialize to False, become true at event open, False again when event session is closed clear
 		self.session_open = False
 		
+		## Initialize total counters for ticket sells
+		self.TotalSoldFullPrice= 0
+		self.TotalSoldReducedPrice=0
+		self.TotalFreePrice=0
+		
 		# parameters that you want to send through the Frame class. 
 		Frame.__init__(self, master)   
 
@@ -204,28 +209,28 @@ class Window(Frame):
 		
 		
 		"""		
-		# 		self.ed['show']['id']=data[0]
-		# 		self.ed['show']['company']=data[1]
-		# 		self.ed['show']['title']=data[2]
-		# 		self.ed['show']['text']=data[3]
-		# 		self.ed['show']['season_year_id']=data[4]
-		# 		self.ed['show']['debut_date']=data[5]
-		# 		self.ed['show']['director']=data[6]
-		# 		self.ed['show']['cast']=data[7]
-		# 		self.ed['show']['shw_code']=data[8]
+		# 		self.AAAed['show']['id']=data[0]
+		# 		self.AAAed['show']['company']=data[1]
+		# 		self.AAAed['show']['title']=data[2]
+		# 		self.AAAed['show']['text']=data[3]
+		# 		self.AAAed['show']['season_year_id']=data[4]
+		# 		self.AAAed['show']['debut_date']=data[5]
+		# 		self.AAAed['show']['director']=data[6]
+		# 		self.AAAed['show']['cast']=data[7]
+		# 		self.AAAed['show']['shw_code']=data[8]
 				
 				
 				
-		# 		self.ed['event']['event_date']=data[2]
-		# 		self.ed['event']['booking_status']=data[3]
-		# 		self.ed['event']['booking_user']=data[4]
-		# 		self.ed['event']['booking_price']=data[5]
-		# 		self.ed['event']['booking_datetime']=data[6]
-		# 		self.ed['event']['price_full']=data[7]
-		# 		self.ed['event']['price_reduced']=data[8]
-		# 		self.ed['event']['author_id']=data[9]
-		# 		self.ed['event']['show_id']=data[10]
-		# 		self.ed['event']['change']=data[11]
+		# 		self.AAAed['event']['event_date']=data[2]
+		# 		self.AAAed['event']['booking_status']=data[3]
+		# 		self.AAAed['event']['booking_user']=data[4]
+		# 		self.AAAed['event']['booking_price']=data[5]
+		# 		self.AAAed['event']['booking_datetime']=data[6]
+		# 		self.AAAed['event']['price_full']=data[7]
+		# 		self.AAAed['event']['price_reduced']=data[8]
+		# 		self.AAAed['event']['author_id']=data[9]
+		# 		self.AAAed['event']['show_id']=data[10]
+		# 		self.AAAed['event']['change']=data[11]
 				#Comando per richiamare una prenotazione con il codice
 				
 		# 		self.booking_btn = Button(self.FrameEventInfos,font=NORM_FONT,text='Prenotazione',
@@ -440,34 +445,34 @@ class Window(Frame):
 			self.ASTotalAmountLbl.config(text=self.TotalPrice)
 			
 			
-			self.TotalFullPrice= 0
-			self.TotalReducedPrice=0
-			self.TotalFreePrice=0
+			self.TotalTransactionFullPrice= 0
+			self.TotalTransactionReducedPrice=0
+			self.TotalTransactionFreePrice=0
 			for w in self.ASPriceLstb:
 				if w.curselection()[0]== FULL_PRICE:
-					self.TotalFullPrice+=1
+					self.TotalTransactionFullPrice+=1
 				elif w.curselection()[0]== REDUCED_PRICE:
-					self.TotalReducedPrice+=1
+					self.TotalTransactionReducedPrice+=1
 				elif w.curselection()[0]== FREE_PRICE:
-					self.TotalFreePrice+=1
-			self.ASTotalFullPriceLbl.config(text=self.TotalFullPrice)
-			self.ASTotalReducedPriceLbl.config(text=self.TotalReducedPrice)
-			self.ASTotalFreePriceLbl.config(text=self.TotalFreePrice)
+					self.TotalTransactionFreePrice+=1
+			self.ASTotalFullPriceLbl.config(text=self.TotalTransactionFullPrice)
+			self.ASTotalReducedPriceLbl.config(text=self.TotalTransactionReducedPrice)
+			self.ASTotalFreePriceLbl.config(text=self.TotalTransactionFreePrice)
 		
 		def ActSelTLSell():
-			users_tmp= self.ed['event']['booking_user'].split(',')
-			price_tmp= self.ed['event']['booking_price'].split(',')
-			datetime_tmp= self.ed['event']['booking_datetime'].split(',')
+			users_tmp= self.AAAed['event']['booking_user'].split(',')
+			price_tmp= self.AAAed['event']['booking_price'].split(',')
+			datetime_tmp= self.AAAed['event']['booking_datetime'].split(',')
 			for idx,seat in enumerate(self.SelectionBuffer):
-				self.ed['seat_status'][seat]=SOLD
+				self.AAAed['seat_status'][seat]=SOLD
 				users_tmp[seat]= '2'
 				price_tmp[seat]= str(self.ASPriceLstb[idx].curselection()[0])
 				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
 				
-			self.ed['event']['booking_status']=','.join(self.ed['seat_status'])
-			self.ed['event']['booking_user']=','.join(users_tmp)
-			self.ed['event']['booking_price']=','.join(price_tmp)
-			self.ed['event']['booking_datetime']=','.join(datetime_tmp)
+			self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
+			self.AAAed['event']['booking_user']=','.join(users_tmp)
+			self.AAAed['event']['booking_price']=','.join(price_tmp)
+			self.AAAed['event']['booking_datetime']=','.join(datetime_tmp)
 			
 			del users_tmp,datetime_tmp
 			
@@ -476,7 +481,7 @@ class Window(Frame):
 			SET `booking_status`='{}',
 			`booking_user`='{}',
 			`booking_price`='{}',`booking_datetime`='{}'
-			WHERE `booking_event`.`id` = {};""".format(self.ed['event']['booking_status'],self.ed['event']['booking_user'],self.ed['event']['booking_price'],self.ed['event']['booking_datetime'],self.ed['event']['id'])
+			WHERE `booking_event`.`id` = {};""".format(self.AAAed['event']['booking_status'],self.AAAed['event']['booking_user'],self.AAAed['event']['booking_price'],self.AAAed['event']['booking_datetime'],self.AAAed['event']['id'])
 			
 			self.EventDataChanged=True			
 			try:
@@ -490,7 +495,7 @@ class Window(Frame):
 				if self.SellingBookingCode:
 					sql_cmd = """UPDATE `booking_booking` 
 					SET `book_sold`= 1 
-					WHERE `booking_booking`.`id` = {};""".format(self.ed['booking'][self.SellingBookingCode][0])
+					WHERE `booking_booking`.`id` = {};""".format(self.AAAed['booking'][self.SellingBookingCode][0])
 					
 					print(sql_cmd)
 					self.EventDataChanged=True
@@ -502,26 +507,39 @@ class Window(Frame):
 						self.mysql.rollback()
 					finally:
 						try:
-							sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.ed['event']['id']))
+							sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.AAAed['event']['id']))
 							result=self.mysqlcursor.execute(sql_cmd)
 							if result < 1:
-								self.ed['booking']['quantity']=result	
+								self.AAAed['booking']['quantity']=result	
 							else:
-								self.ed['booking']['quantity']=result
+								self.AAAed['booking']['quantity']=result
 								for idx in range(result):  # @UnusedVariable
 									data=self.mysqlcursor.fetchone()
-									self.ed['booking'][str(data[0]).zfill(6)]=data	
-									print(self.ed['booking'][str(data[0]).zfill(6)])
+									self.AAAed['booking'][str(data[0]).zfill(6)]=data	
+									print(self.AAAed['booking'][str(data[0]).zfill(6)])
 
 								self.RefreshBooking(mode='full')
 						except:
 							pass
 						print("Mysql executed")
 			except:
-				pass			
+				pass
+			
+			# Update the Totalizer for current session and related Totals
+			self.TotalSoldFullPrice+=self.TotalTransactionFullPrice
+			self.TotalSoldReducedPrice+=self.TotalTransactionReducedPrice
+			self.TotalFreePrice+=self.TotalTransactionFreePrice
+			
+			self.AAAed['Totals']['session_price']=Counter({str(FULL_PRICE):self.TotalSoldFullPrice,
+															str(REDUCED_PRICE):self.TotalSoldReducedPrice,
+															str(FREE_PRICE):self.TotalFreePrice})
+			self.AAAed['Totals']['session_revenue']+=self.TotalPrice
+			
+						
 			self.RefreshSeats(mode='full', idx=None)
 			self.SelectionBuffer=[]
 			self.UpdateSelectionBufferText()
+			self.RefreshTotalizers(mode=SESSION)
 
 			## Finally exit from TopLevel and Destroy it
 			ActSelTLExit()
@@ -532,23 +550,23 @@ class Window(Frame):
 			
 			## booking_event data change for booking 
 			"""
-				self.ed['event']['booking_user']=data[4]
-				self.ed['event']['booking_price']=data[5]
-				self.ed['event']['booking_datetime']=data[6]
+				self.AAAed['event']['booking_user']=data[4]
+				self.AAAed['event']['booking_price']=data[5]
+				self.AAAed['event']['booking_datetime']=data[6]
 			"""
-			users_tmp= self.ed['event']['booking_user'].split(',')
-			price_tmp= self.ed['event']['booking_price'].split(',')
-			datetime_tmp= self.ed['event']['booking_datetime'].split(',')
+			users_tmp= self.AAAed['event']['booking_user'].split(',')
+			price_tmp= self.AAAed['event']['booking_price'].split(',')
+			datetime_tmp= self.AAAed['event']['booking_datetime'].split(',')
 			for idx,seat in enumerate(self.SelectionBuffer):
-				self.ed['seat_status'][seat]=BOOKED
+				self.AAAed['seat_status'][seat]=BOOKED
 				users_tmp[seat]= '2'
 				price_tmp[seat]= str(self.ASPriceLstb[idx].curselection()[0])
 				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
 				
-			self.ed['event']['booking_status']=','.join(self.ed['seat_status'])
-			self.ed['event']['booking_user']=','.join(users_tmp)
-			self.ed['event']['booking_price']=','.join(price_tmp)
-			self.ed['event']['booking_datetime']=','.join(datetime_tmp)
+			self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
+			self.AAAed['event']['booking_user']=','.join(users_tmp)
+			self.AAAed['event']['booking_price']=','.join(price_tmp)
+			self.AAAed['event']['booking_datetime']=','.join(datetime_tmp)
 			
 			del users_tmp,datetime_tmp
 			
@@ -556,7 +574,7 @@ class Window(Frame):
 			SET `booking_status`='{}',
 			`booking_user`='{}',
 			`booking_price`='{}',`booking_datetime`='{}'
-			WHERE `booking_event`.`id` = {};""".format(self.ed['event']['booking_status'],self.ed['event']['booking_user'],self.ed['event']['booking_price'],self.ed['event']['booking_datetime'],self.ed['event']['id'])
+			WHERE `booking_event`.`id` = {};""".format(self.AAAed['event']['booking_status'],self.AAAed['event']['booking_user'],self.AAAed['event']['booking_price'],self.AAAed['event']['booking_datetime'],self.AAAed['event']['id'])
 			
 			
 			try:
@@ -568,7 +586,7 @@ class Window(Frame):
 			
 			## booking_booking data get for insert new record
 
-			self.ed['booking']['quantity']+=1
+			self.AAAed['booking']['quantity']+=1
 			created_date_tmp = time.strftime('%Y-%m-%d %H:%M:%S')
 			seats_booked_tmp = ''
 			for idx,seat in enumerate(self.SelectionBuffer):
@@ -577,7 +595,7 @@ class Window(Frame):
 			cstr_surname = self.ASSurnameEnt.get()
 			cstr_email = self.ASEmailEnt.get()
 			cstr_phone = self.ASPhoneEnt.get()
-			event_tmp = self.ed['event']['id']
+			event_tmp = self.AAAed['event']['id']
 			
 			self.EventDataChanged=True
 			
@@ -596,16 +614,16 @@ class Window(Frame):
 				self.mysql.rollback()
 			finally:
 				try:
-					sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.ed['event']['id']))
+					sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.AAAed['event']['id']))
 					result=self.mysqlcursor.execute(sql_cmd)
 					if result < 1:
-						self.ed['booking']['quantity']=result	
+						self.AAAed['booking']['quantity']=result	
 					else:
-						self.ed['booking']['quantity']=result
+						self.AAAed['booking']['quantity']=result
 						for idx in range(result):  # @UnusedVariable
 							data=self.mysqlcursor.fetchone()
-							self.ed['booking'][str(data[0]).zfill(6)]=data	
-							print(self.ed['booking'][str(data[0]).zfill(6)])
+							self.AAAed['booking'][str(data[0]).zfill(6)]=data	
+							print(self.AAAed['booking'][str(data[0]).zfill(6)])
 						self.EventDataChanged=False
 				except:
 					pass
@@ -638,7 +656,7 @@ class Window(Frame):
 		
 		## LIST OF SEAT SELECTED , PRICES AND TYPES
 		self.ActSelTL=Toplevel(  background='lavender', borderwidth=1, container = 0, height = 800,takefocus=True,  width=600)
-		self.prices=[Decimal('0.00'),self.ed['event']['price_reduced'],self.ed['event']['price_full']]
+		self.prices=[Decimal('0.00'),self.AAAed['event']['price_reduced'],self.AAAed['event']['price_full']]
 		gridrow=1
 		if mode == BOOK:
 			self.ActSelTL.title("Finestra per la prenotazione dei posti selezionati")
@@ -706,33 +724,33 @@ class Window(Frame):
 		
 		gridrow+=2
 		
-		self.TotalFullPrice= 0
-		self.TotalReducedPrice=0
-		self.TotalFreePrice=0
+		self.TotalTransactionFullPrice= 0
+		self.TotalTransactionReducedPrice=0
+		self.TotalTransactionFreePrice=0
 		
 		
 		for w in self.ASPriceLstb:
 			if w.curselection()[0]== FULL_PRICE:
-				self.TotalFullPrice+=1
+				self.TotalTransactionFullPrice+=1
 			elif w.curselection()[0]== REDUCED_PRICE:
-				self.TotalReducedPrice+=1
+				self.TotalTransactionReducedPrice+=1
 			elif w.curselection()[0]== FREE_PRICE:
-				self.TotalFreePrice+=1
+				self.TotalTransactionFreePrice+=1
 				
 		
 		self.ASTotalFullPriceTitle=Label(self.ActSelTL,font=NORM_FONT,text="Totale ingressi INTERI")
 		self.ASTotalFullPriceTitle.grid(row=gridrow,column=1,columnspan=2,padx=(5,5),pady=(5,5))
-		self.ASTotalFullPriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalFullPrice)
+		self.ASTotalFullPriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalTransactionFullPrice)
 		self.ASTotalFullPriceLbl.grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 		gridrow+=1
 		self.ASTotalReducedPriceTitle=Label(self.ActSelTL,font=NORM_FONT,text="Totale ingressi RIDOTTI")
 		self.ASTotalReducedPriceTitle.grid(row=gridrow,column=1,columnspan=2,padx=(5,5),pady=(5,5))
-		self.ASTotalReducedPriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalReducedPrice)
+		self.ASTotalReducedPriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalTransactionReducedPrice)
 		self.ASTotalReducedPriceLbl.grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 		gridrow+=1
 		self.ASTotalFreePriceTitle=Label(self.ActSelTL,font=NORM_FONT,text="Totale ingressi GRATUITI")
 		self.ASTotalFreePriceTitle.grid(row=gridrow,column=1,columnspan=2,padx=(5,5),pady=(5,5))
-		self.ASTotalFreePriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalFreePrice)
+		self.ASTotalFreePriceLbl=Label(self.ActSelTL,font=NORM_FONT,text=self.TotalTransactionFreePrice)
 		self.ASTotalFreePriceLbl.grid(row=gridrow,column=3,columnspan=1,padx=(5,5),pady=(5,5))
 
 
@@ -827,25 +845,25 @@ class Window(Frame):
 			gridrow+=2
 			
 			self.ASSurnameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Cognome")
-			self.ASSurnameEnt.insert(END, self.ed['booking'][self.SellingBookingCode][4])
+			self.ASSurnameEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][4])
 			self.ASSurnameEnt.config(state=DISABLED)
 			self.ASSurnameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 			
 			gridrow+=1
 			self.ASNameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Nome")
-			self.ASNameEnt.insert(END, self.ed['booking'][self.SellingBookingCode][3])
+			self.ASNameEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][3])
 			self.ASNameEnt.config(state=DISABLED)
 			self.ASNameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
 			self.ASEmailEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Email")
-			self.ASEmailEnt.insert(END, self.ed['booking'][self.SellingBookingCode][5])
+			self.ASEmailEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][5])
 			self.ASEmailEnt.config(state=DISABLED)
 			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
 			self.ASPhoneEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Telefono")
-			self.ASPhoneEnt.insert(END, self.ed['booking'][self.SellingBookingCode][8])
+			self.ASPhoneEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][8])
 			self.ASPhoneEnt.config(state=DISABLED)
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 		
@@ -909,6 +927,7 @@ class Window(Frame):
 				print("Scelta : ID record evento = {} - da item {}".format(self.ev_id,self.event))
 				pass
 		def event_open():
+			from builtins import str
 			self.EvCh_TL.destroy()
 			print("Evento scelto e in apertura = {}".format(self.event))
 			if self.EventDataChanged:
@@ -918,80 +937,100 @@ class Window(Frame):
 				## structure:
 				## ['event'] = dictionary of event info 
 				try:
-					self.ed= defaultdict(dict)
+					self.AAAed= defaultdict(dict)
 				except NameError:
-					self.ed= defaultdict(dict)
+					self.AAAed= defaultdict(dict)
 				# query booking_event - heavy priority data
 				# putting information on ed (event dictionary) in the inner event dictionary
 				sql_cmd="SELECT * FROM booking_event where booking_event.id = {};".format(int(self.ev_id))
 				self.mysqlcursor.execute(sql_cmd)
 				data=self.mysqlcursor.fetchone()
-				self.ed['event']['id']=data[0]
-				self.ed['event']['creation_date']=data[1]
-				self.ed['event']['event_date']=data[2]
-				self.ed['event']['booking_status']=data[3]
-				self.ed['event']['booking_user']=data[4]
-				self.ed['event']['booking_price']=data[5]
-				self.ed['event']['booking_datetime']=data[6]
-				self.ed['event']['price_full']=data[7]
-				self.ed['event']['price_reduced']=data[8]
-				self.ed['event']['author_id']=data[9]
-				self.ed['event']['show_id']=data[10]
-				self.ed['event']['change']=data[11]
-				print(self.ed['event'])
+				self.AAAed['event']['id']=data[0]
+				self.AAAed['event']['creation_date']=data[1]
+				self.AAAed['event']['event_date']=data[2]
+				self.AAAed['event']['booking_status']=data[3]
+				self.AAAed['event']['booking_user']=data[4]
+				self.AAAed['event']['booking_price']=data[5]
+				self.AAAed['event']['booking_datetime']=data[6]
+				self.AAAed['event']['price_full']=data[7]
+				self.AAAed['event']['price_reduced']=data[8]
+				self.AAAed['event']['author_id']=data[9]
+				self.AAAed['event']['show_id']=data[10]
+				self.AAAed['event']['change']=data[11]
+				print(self.AAAed['event'])
 				
 				# crea una list per uso diretto senza dover ripetere operazione di split tutte le volte
-				self.ed['seat_status']=self.ed['event']['booking_status'].split(',')
+				self.AAAed['seat_status']=self.AAAed['event']['booking_status'].split(',')
+				self.AAAed['seat_prices']=self.AAAed['event']['booking_price'].split(',')
 
 				# query booking_show - low priority data
 				# putting information on ed (event dictionary) in the inner show dictionary
 				
-				sql_cmd="SELECT * FROM booking_show where booking_show.id = {};".format(self.ed['event']['show_id'])
+				sql_cmd="SELECT * FROM booking_show where booking_show.id = {};".format(self.AAAed['event']['show_id'])
 				self.mysqlcursor.execute(sql_cmd)
 				data=self.mysqlcursor.fetchone()
-				self.ed['show']['id']=data[0]
-				self.ed['show']['company']=data[1]
-				self.ed['show']['title']=data[2]
-				self.ed['show']['text']=data[3]
-				self.ed['show']['season_year_id']=data[4]
-				self.ed['show']['debut_date']=data[5]
-				self.ed['show']['director']=data[6]
-				self.ed['show']['cast']=data[7]
-				self.ed['show']['shw_code']=data[8]
-				print(self.ed['show'])
+				self.AAAed['show']['id']=data[0]
+				self.AAAed['show']['company']=data[1]
+				self.AAAed['show']['title']=data[2]
+				self.AAAed['show']['text']=data[3]
+				self.AAAed['show']['season_year_id']=data[4]
+				self.AAAed['show']['debut_date']=data[5]
+				self.AAAed['show']['director']=data[6]
+				self.AAAed['show']['cast']=data[7]
+				self.AAAed['show']['shw_code']=data[8]
+				print(self.AAAed['show'])
 				
 				# query booking_bookingseason - low priority data
 				# putting information on ed (event dictionary) in the inner season dictionary
 				
-				sql_cmd="SELECT * FROM booking_bookingseason where booking_bookingseason.id = {};".format(self.ed['show']['season_year_id'])
+				sql_cmd="SELECT * FROM booking_bookingseason where booking_bookingseason.id = {};".format(self.AAAed['show']['season_year_id'])
 				self.mysqlcursor.execute(sql_cmd)
 				data=self.mysqlcursor.fetchone()
-				self.ed['season']['id']=data[0]
-				self.ed['season']['label']=data[1]
-				self.ed['season']['start_date']=data[2]
-				self.ed['season']['end_date']=data[3]
-				self.ed['season']['booking_enabled']=data[4]
-				self.ed['season']['ssn_code']=data[5]
-				print(self.ed['season'])	
+				self.AAAed['season']['id']=data[0]
+				self.AAAed['season']['label']=data[1]
+				self.AAAed['season']['start_date']=data[2]
+				self.AAAed['season']['end_date']=data[3]
+				self.AAAed['season']['booking_enabled']=data[4]
+				self.AAAed['season']['ssn_code']=data[5]
+				print(self.AAAed['season'])	
 				
 				# query booking_booking - high priority data
 				# putting information on ed (event dictionary) in the inner bookings dictionary
 				
-				sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.ed['event']['id']))
+				sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.AAAed['event']['id']))
 				result=self.mysqlcursor.execute(sql_cmd)
 				if result < 1:
-					self.ed['booking']['quantity']=result	
+					self.AAAed['booking']['quantity']=result	
 				else:
-					self.ed['booking']['quantity']=result
+					self.AAAed['booking']['quantity']=result
 					for idx in range(result):  # @UnusedVariable
 						data=self.mysqlcursor.fetchone()
-						self.ed['booking'][str(data[0]).zfill(6)]=data	
-						print(self.ed['booking'][str(data[0]).zfill(6)])
+						self.AAAed['booking'][str(data[0]).zfill(6)]=data	
+						print(self.AAAed['booking'][str(data[0]).zfill(6)])
 						
 				# Initialize opening Totalizers
-				Event_Prices=Counter(self.ed['event']['booking_status'])
+				# Extract the sold seats in a temporary dictionary
+				
+				Opening_SoldSeat_prices = []
+				for idx,price in enumerate(self.AAAed['seat_prices']):
+					if self.AAAed['seat_status'][idx]==SOLD:
+						Opening_SoldSeat_prices.append(price)
+				Event_Prices=Counter(Opening_SoldSeat_prices)
 				print(Event_Prices)
-				self.ed['Totals']['open']=Event_Prices
+				self.AAAed['Totals']['open_price']=Event_Prices
+				Event_Revenue = Event_Prices[str(FULL_PRICE)]*self.AAAed['event']['price_full']+Event_Prices[str(REDUCED_PRICE)]*self.AAAed['event']['price_reduced']
+				self.AAAed['Totals']['open_revenue']=Event_Revenue
+				
+				# When opening event the Totalizers Totals are set as Opning ones
+				self.AAAed['Totals']['totals_price']=Event_Prices
+				self.AAAed['Totals']['totals_revenue']=Event_Revenue
+				
+				# When opening event the Totalizers session are set to Zero
+				self.AAAed['Totals']['session_price']=Counter({'2': 0, '1': 0, '0': 0})
+				self.AAAed['Totals']['session_revenue']=Decimal('0.00')
+				
+				#cleaning
+				del Event_Prices,Opening_SoldSeat_prices,sql_cmd, result, data, price, idx
 				
 # 			sleep(5)						
 			
@@ -1085,33 +1124,33 @@ class Window(Frame):
 		print('Refreshing the Seats Grid with mode = {}'.format(mode))
 		if mode=="full":
 			for idx in range(263):
-				status=self.ed['seat_status'][idx]
+				status=self.AAAed['seat_status'][idx]
 				setseat(idx,status)
 		elif mode=='one':
-			status=self.ed['seat_status'][idx]
+			status=self.AAAed['seat_status'][idx]
 			setseat(idx,status)
 				
 	def RefreshEventInfo(self,mode=None):
 
 		
-		self.LblEvent_company.config(text="Compagnia: {}".format(self.ed['show']['company']))
+		self.LblEvent_company.config(text="Compagnia: {}".format(self.AAAed['show']['company']))
 
-		self.LblEvent_title.config(text="Titolo: {}".format(self.ed['show']['title']))
+		self.LblEvent_title.config(text="Titolo: {}".format(self.AAAed['show']['title']))
 		
-		date_aware=rome.localize(self.ed['event']['event_date']+timedelta(hours=2))		
+		date_aware=rome.localize(self.AAAed['event']['event_date']+timedelta(hours=2))		
 		self.LblEvent_date.config(text="Data: {}".format(date_aware.strftime('%A, %d/%m/%y ')))
 		
 		self.LblEvent_time.config(text="Ora: {}".format(date_aware.strftime( '%H:%M')))
 		
-		self.LblEvent_price_full.config(text="Intero = {}".format(self.ed['event']['price_full']))
+		self.LblEvent_price_full.config(text="Intero = {}".format(self.AAAed['event']['price_full']))
 		
-		self.LblEvent_price_reduced.config(text="Ridotto = {}".format(self.ed['event']['price_reduced']))
+		self.LblEvent_price_reduced.config(text="Ridotto = {}".format(self.AAAed['event']['price_reduced']))
 
-		self.LblEvent_season.config(text="Stagione Teatrale {}".format(self.ed['season']['label']))
+		self.LblEvent_season.config(text="Stagione Teatrale {}".format(self.AAAed['season']['label']))
 
-		self.LblEvent_season_code.config(text="Codice {}".format(self.ed['season']['ssn_code']))
+		self.LblEvent_season_code.config(text="Codice {}".format(self.AAAed['season']['ssn_code']))
 
-		self.LblEvent_show_code.config(text="Codice spettacolo = {}".format(self.ed['show']['shw_code']))
+		self.LblEvent_show_code.config(text="Codice spettacolo = {}".format(self.AAAed['show']['shw_code']))
 	
 	def SelectEvent(self):
 		pass
@@ -1124,7 +1163,7 @@ class Window(Frame):
 			else:
 				widget.destroy()
 		
-		if self.ed['booking']['quantity']:
+		if self.AAAed['booking']['quantity']:
 			self.LblBookingCodeTitle= Label(self.FrameBooking,height = 1,width=8,font=SMALL_FONT,text="Codice")
 			self.LblBookingCodeTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			self.LblBookingSurnameTitle= Label(self.FrameBooking,height = 1,width=15,font=SMALL_FONT,text="Cognome")
@@ -1138,14 +1177,14 @@ class Window(Frame):
 			self.LblBookingSeatsTitle= Label(self.FrameBooking,height = 1,width=20,font=SMALL_FONT,text="Posti")
 			self.LblBookingSeatsTitle.grid(row=2,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			
-			self.BtnBookingCode=[0 for x in range(self.ed['booking']['quantity'])]  # @UnusedVariable
-			self.LblBookingSurname=[0 for x in range(self.ed['booking']['quantity'])]  # @UnusedVariable
-			self.LblBookingName=[0 for x in range(self.ed['booking']['quantity'])]  # @UnusedVariable
-			self.LblBookingPhone=[0 for x in range(self.ed['booking']['quantity'])]  # @UnusedVariable
-			self.LblBookingDate=[0 for x in range(self.ed['booking']['quantity'])]  # @UnusedVariable
-			self.LblBookingSeats=[0 for x in range(self.ed['booking']['quantity'])]  # @UnusedVariable
+			self.BtnBookingCode=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
+			self.LblBookingSurname=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
+			self.LblBookingName=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
+			self.LblBookingPhone=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
+			self.LblBookingDate=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
+			self.LblBookingSeats=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			idx=0	
-			for key,booking in sorted(self.ed['booking'].items()):
+			for key,booking in sorted(self.AAAed['booking'].items()):
 				if not key== 'quantity' and not booking[9]:
 					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=NORMAL,bg='green2',fg='blue4',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
@@ -1167,7 +1206,7 @@ class Window(Frame):
 					self.LblBookingSeats[idx].grid(row=3+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					
 					idx+=1
-			for key,booking in sorted(self.ed['booking'].items()):
+			for key,booking in sorted(self.AAAed['booking'].items()):
 				if not key== 'quantity' and booking[9]:
 					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=DISABLED,bg='IndianRed4',fg='snow2',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
@@ -1195,9 +1234,30 @@ class Window(Frame):
 	
 	def RefreshTotalizers(self,mode=None):
 		if mode==OPENING:
-			self.Totalizers.set(self.TotalizersOpening,'full_price',self.ed['Totals']['open'][str(FULL_PRICE)])		
-			self.Totalizers.set(self.TotalizersOpening,'reduced_price',self.ed['Totals']['open'][str(REDUCED_PRICE)])		
-			self.Totalizers.set(self.TotalizersOpening,'free_price',self.ed['Totals']['open'][str(FREE_PRICE)])		
+			self.Totalizers.set(self.TotalizersOpening,'full_price',self.AAAed['Totals']['open_price'][str(FULL_PRICE)])		
+			self.Totalizers.set(self.TotalizersOpening,'reduced_price',self.AAAed['Totals']['open_price'][str(REDUCED_PRICE)])		
+			self.Totalizers.set(self.TotalizersOpening,'free_price',self.AAAed['Totals']['open_price'][str(FREE_PRICE)])		
+			self.Totalizers.set(self.TotalizersOpening,'revenue',self.AAAed['Totals']['open_revenue'])		
+			
+			self.Totalizers.set(self.TotalizersTotals,'full_price',self.AAAed['Totals']['totals_price'][str(FULL_PRICE)])		
+			self.Totalizers.set(self.TotalizersTotals,'reduced_price',self.AAAed['Totals']['totals_price'][str(REDUCED_PRICE)])		
+			self.Totalizers.set(self.TotalizersTotals,'free_price',self.AAAed['Totals']['totals_price'][str(FREE_PRICE)])		
+			self.Totalizers.set(self.TotalizersTotals,'revenue',self.AAAed['Totals']['totals_revenue'])
+			
+		if mode==SESSION:
+			self.Totalizers.set(self.TotalizersSession,'full_price',self.AAAed['Totals']['session_price'][str(FULL_PRICE)])		
+			self.Totalizers.set(self.TotalizersSession,'reduced_price',self.AAAed['Totals']['session_price'][str(REDUCED_PRICE)])		
+			self.Totalizers.set(self.TotalizersSession,'free_price',self.AAAed['Totals']['session_price'][str(FREE_PRICE)])		
+			self.Totalizers.set(self.TotalizersSession,'revenue',self.AAAed['Totals']['session_revenue'])	
+			
+			self.Totalizers.set(self.TotalizersTotals,'full_price',self.AAAed['Totals']['totals_price'][str(FULL_PRICE)])		
+			self.Totalizers.set(self.TotalizersTotals,'reduced_price',self.AAAed['Totals']['totals_price'][str(REDUCED_PRICE)])		
+			self.Totalizers.set(self.TotalizersTotals,'free_price',self.AAAed['Totals']['totals_price'][str(FREE_PRICE)])		
+			self.Totalizers.set(self.TotalizersTotals,'revenue',self.AAAed['Totals']['totals_revenue'])	
+			
+				
+			
+		
 # 		self.TotalizersSession=self.Totalizers.insert('', 'end', text="Sessione cassa", values=(0,0,0,Decimal('0.00')))
 # 		self.TotalizersTotals=self.Totalizers.insert('', 'end', text="TOTALE", values=(0,0,0,Decimal('0.00')))
 		
@@ -1221,7 +1281,7 @@ class Window(Frame):
 				for seat in self.SelectionBuffer:
 					self.booking_prices.append(FULL_PRICE)
 		
-		booking_seats=self.ed['booking'][code][2].split(',')
+		booking_seats=self.AAAed['booking'][code][2].split(',')
 
 		for seat in booking_seats:
 			if seat !='':
