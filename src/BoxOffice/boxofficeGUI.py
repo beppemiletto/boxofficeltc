@@ -17,6 +17,7 @@ from tkinter import Tk,Frame,Label,Listbox,Entry, Toplevel, Button,Text,Menu
 from tkinter import BOTH,CENTER,NW,S,W,N,E,END
 from tkinter import DISABLED,NORMAL,RAISED,FLAT,RIDGE,SUNKEN,BROWSE,X,Y  # @UnusedImport
 from tkinter import messagebox
+from tkinter.ttk import Treeview
 import MySQLdb
 
 
@@ -78,6 +79,11 @@ SELLABOOK 	= 4
 SELL 		= 3
 BOOK 		= 2
 CLEAR 		= 0
+
+# modes for Totalizers Refresh
+OPENING		= 1
+SESSION		= 2
+FULL		= 3
 
 
 # Here, we are creating our class, Window, and inheriting from the Frame
@@ -320,16 +326,37 @@ class Window(Frame):
 		self.BookingTitle= Label(self.FrameBooking,height = 1,width=30,font=HUGE_FONT,text="Prenotazioni evento")
 		self.BookingTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=5,sticky=N)		
 
-		## CREATE THE FRAME FOR TOTALIZERS 
+		## CREATE THE FRAME FOR TOTALIZERS ###################################
 		##
 		
 		self.FrameTotalizers=Frame(self.BookingFrameGUI,bg='lightgreen')
 		self.FrameTotalizers.grid(row=3,column=1,padx=(5,5),pady=(5,0))	
 		self.FrameTotalizers.grid(columnspan=2,rowspan=1,sticky=N+E)
 		
-		# Finestra con le prenotazioni attive
+		#  Tabella Totalizzatori
 		self.TotalizersTitle= Label(self.FrameTotalizers,height = 1,width=30,font=HUGE_FONT,text="Totalizzatori")
-		self.TotalizersTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=4,sticky=E+N)		
+		self.TotalizersTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=5,sticky=E+N)
+		
+		TotalizersTv= Treeview(self.FrameTotalizers)
+		TotalizersTv['columns'] = ('full_price', 'reduced_price', 'free_price','revenue')
+		TotalizersTv.heading("#0", text='Frazione', anchor='w')
+		TotalizersTv.column("#0", anchor="w")
+		TotalizersTv.heading('full_price', text='Interi')
+		TotalizersTv.column('full_price', anchor='center', width=100)
+		TotalizersTv.heading('reduced_price', text='Ridotti')
+		TotalizersTv.column('reduced_price', anchor='center', width=100)
+		TotalizersTv.heading('free_price', text='Gratuiti')
+		TotalizersTv.column('free_price', anchor='center', width=100)
+		TotalizersTv.heading('revenue', text='Incasso')
+		TotalizersTv.column('revenue', anchor='center', width=100)
+		TotalizersTv.grid(sticky = (N,S,W,E))
+		self.Totalizers = TotalizersTv
+		self.grid_rowconfigure(0, weight = 1)
+		self.grid_columnconfigure(0, weight = 1)
+		self.TotalizersOpening=self.Totalizers.insert('', 'end', text="Apertura", values=(0,0,0,Decimal('0.00')))		
+		self.TotalizersSession=self.Totalizers.insert('', 'end', text="Sessione cassa", values=(0,0,0,Decimal('0.00')))
+		self.TotalizersTotals=self.Totalizers.insert('', 'end', text="TOTALE", values=(0,0,0,Decimal('0.00')))
+				
 
 		## CREATING A MENU FOR ROOT WINDOW ####################################
 		## FILE AND EDIT
@@ -826,7 +853,7 @@ class Window(Frame):
 		
 	def toggle_status(self,idx,mode=None):
 		if mode == SELECT:
-			if len(self.SelectionBuffer)<15:
+			if len(self.SelectionBuffer)<16:
 				if idx not in self.SelectionBuffer:
 					print('Selezionato posto {}.'.format(self.seat_name[idx]))
 					self.btn[idx].config(relief=SUNKEN,bg='yellow')
@@ -962,7 +989,9 @@ class Window(Frame):
 						print(self.ed['booking'][str(data[0]).zfill(6)])
 						
 				# Initialize opening Totalizers
-				Prices=Counter(self.ed['event']['booking_status'])
+				Event_Prices=Counter(self.ed['event']['booking_status'])
+				print(Event_Prices)
+				self.ed['Totals']['open']=Event_Prices
 				
 # 			sleep(5)						
 			
@@ -971,6 +1000,7 @@ class Window(Frame):
 			self.RefreshSeats(mode='full')
 			self.RefreshEventInfo(mode='full')
 			self.RefreshBooking(mode='full')
+			self.RefreshTotalizers(mode=OPENING)
 			self.session_open = True
 												
 								
@@ -1133,7 +1163,7 @@ class Window(Frame):
 												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
 					self.LblBookingDate[idx].grid(row=3+3*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = 3,width=20,
-												font=SMALL_FONT,text=booking[2])
+												font=SMALL_FONT,text=booking[2],wraplength=60,anchor=W,)
 					self.LblBookingSeats[idx].grid(row=3+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					
 					idx+=1
@@ -1154,7 +1184,7 @@ class Window(Frame):
 					self.LblBookingDate[idx]= Label(self.FrameBooking,height = 1,width=12,
 												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
 					self.LblBookingDate[idx].grid(row=3+3*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = 3,width=20,
+					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = 3,width=20,wraplength=60,anchor=W,
 												font=SMALL_FONT,text=booking[2])
 					self.LblBookingSeats[idx].grid(row=3+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					
@@ -1162,6 +1192,17 @@ class Window(Frame):
 		else:
 			self.LblBookingFrameTitle= Label(self.FrameBooking,height = 3,width=25,font=NORM_FONT,text="Non ci sono \nprenotazioni attive \nper questo evento")
 			self.LblBookingFrameTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=4,sticky=W)
+	
+	def RefreshTotalizers(self,mode=None):
+		if mode==OPENING:
+			self.Totalizers.set(self.TotalizersOpening,'full_price',self.ed['Totals']['open'][str(FULL_PRICE)])		
+			self.Totalizers.set(self.TotalizersOpening,'reduced_price',self.ed['Totals']['open'][str(REDUCED_PRICE)])		
+			self.Totalizers.set(self.TotalizersOpening,'free_price',self.ed['Totals']['open'][str(FREE_PRICE)])		
+# 		self.TotalizersSession=self.Totalizers.insert('', 'end', text="Sessione cassa", values=(0,0,0,Decimal('0.00')))
+# 		self.TotalizersTotals=self.Totalizers.insert('', 'end', text="TOTALE", values=(0,0,0,Decimal('0.00')))
+		
+		
+	
 	def GetBooking(self,code,mode=None):
 		self.SellingBookingCode=code
 
