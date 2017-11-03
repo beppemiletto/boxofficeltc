@@ -1,0 +1,32 @@
+<?xml version="1.0" ?>
+<root>
+	<p_uno type="dict">
+		<s_due type="dict">
+			<b type="int">5</b>
+			<a type="int">4</a>
+			<c type="int">6</c>
+		</s_due>
+		<s_uno type="dict">
+			<b type="int">2</b>
+			<a type="int">1</a>
+			<c type="int">3</c>
+		</s_uno>
+	</p_uno>
+	<p_due type="dict">
+		<s_tre type="dict">
+			<e type="int">8</e>
+			<f type="int">9</f>
+			<d type="int">7</d>
+		</s_tre>
+		<s_due type="dict">
+			<e type="int">5</e>
+			<f type="int">6</f>
+			<d type="int">4</d>
+		</s_due>
+		<s_uno type="dict">
+			<e type="int">2</e>
+			<f type="int">3</f>
+			<d type="int">1</d>
+		</s_uno>
+	</p_due>
+</root>
