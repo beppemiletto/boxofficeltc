@@ -20,23 +20,17 @@ from tkinter import messagebox
 from tkinter.ttk import Treeview
 import MySQLdb
 
-
 #download and install pillow:
 # http://www.lfd.uci.edu/~gohlke/pythonlibs/#pillow
 from PIL import ImageTk
 from PIL import Image
-
 from button_array_location import rows_name,seats  # @UnresolvedImport
 from datetime import timedelta
-# from orca.scripts import self_voicing
 from collections import defaultdict,Counter
-from dicttoxml import dicttoxml
-# from time import sleep
-# import code
-# from orca.scripts import self_voicing
 from decimal import Decimal
 import time, pytz
-
+import pickle
+import os.path
 
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
 ## GLOBAL SETTINGS AND VARIABLE
@@ -66,8 +60,11 @@ FULL_PRICE 		= 2
 # RUNNING MODE SET 
 DEVELOPMENT = 1
 PRODUCTION  = 0
-
 running_mode = DEVELOPMENT
+
+#mode for Windows INIT
+INIT 		= 1
+REINIT		= 2
 
 # modes for toggle seat buttons
 DISABLE 	= 2
@@ -141,19 +138,28 @@ class Window(Frame):
 
 
 		#with that, we want to then run init_window, which doesn't yet exist
-		self.init_window()
+		self.init_window(mode=INIT)
 		
 		
 
 	#Creation of init_window
-	def init_window(self):
+	def init_window(self, mode=None):
 		
-		self.BookingFrameGUI=Frame(self.master,bg='lightgrey')
-		# allowing the widget to take the full space of the root window
-		self.BookingFrameGUI.pack(fill=BOTH, expand=1)
-
-		# changing the title of our master widget	  
-		self.master.title("LTC-BoxOffice")
+		if mode==INIT:
+			self.BookingFrameGUI=Frame(self.master,bg='lightgrey')
+			# allowing the widget to take the full space of the root window
+			self.BookingFrameGUI.pack(fill=BOTH, expand=1)
+			# changing the title of our master widget	  
+			self.master.title("LTC-BoxOffice")
+		elif mode == REINIT:
+			self.BookingFrameGUI.destroy()
+			self.BookingFrameGUI=Frame(self.master,bg='lightgrey')
+			# allowing the widget to take the full space of the root window
+			self.BookingFrameGUI.pack(fill=BOTH, expand=1)
+			# changing the title of our master widget	  
+			self.master.title("LTC-BoxOffice")
+			
+			
 		
 		## CREATE THE FRAME FOR EVENT INFO DISPLAY
 		##
@@ -395,6 +401,51 @@ class Window(Frame):
 
 		#added "file" to our menu
 		menu.add_cascade(label="Edit", menu=edit)
+		
+		if os.path.exists("session_dumpdata.dat"):
+			message= """ Ho trovato un file con dati di una sessione precedente non chiusa correttamente.
+			Vuoi caricare i dati della sessione salvata sul disco?
+			"""
+			if messagebox.askyesno("Trovato un file dati di sessione non chiusa", message):
+				
+				self.session_open = True
+				try:
+					with open("session_dumpdata.dat", "rb") as f:
+						self.AAAed=pickle.load(f)
+				except (pickle.PickleError) as e:
+					messagebox.showerror("Errore nella lettura della sessione", "Il programma ha trovato questo errore:/n {}/n Non è consentito il proseguimento./nIl programma verrà terminato. Premi OK per terminare".format(e))
+					exit(2)
+				## Main refresh of application data for event opening
+				self.RefreshSeats(mode='full')
+				self.RefreshEventInfo(mode='full')
+				self.RefreshBooking(mode='full')
+				self.RefreshTotalizers(mode=OPENING)
+		## Open the MySQL connection using the tunnel 
+		# tunneling must be operative before and managed outside this code
+		try:
+			try:
+				self.mysql= MySQLdb.connect("127.0.0.1","ltc","ltc","ltcsite")
+				self.mysqlcursor=self.mysql.cursor()
+				self.mysqlcursor.execute("SELECT VERSION()")
+			except (MySQLdb.Error,MySQLdb.Warning) as e:  # @UndefinedVariable
+				print(e)
+				self.mysql_active=False
+				exit(1)
+		
+			self.mysql_active=True
+			data,=self.mysqlcursor.fetchone()
+			print("Version of mysql opened ={}".format(data))
+			
+		finally:
+			if self.mysql_active:
+				print("OK ---> Connection to MySqlDb establish!")
+			else:
+				print("KO ---> Connection to MySqlDb cannot be established!")
+
+		sql_cmd="USE ltcsite;"
+		self.mysqlcursor.execute(sql_cmd)
+			
+		
 	def showText(self):
 		pass
 	def showImg(self):
@@ -411,7 +462,7 @@ class Window(Frame):
 		if len(self.SelectionBuffer):
 			self.ActionOnSelection(mode=SELL)
 		else:
-			messagebox.showerror("NESSUN POSTO SELEZIONATO","Hai richiesto l'azione di PRENOTAZIONE \nche prevede di aver selezionato dei posti su cui affettuarla.\n")
+			messagebox.showerror("NESSUN POSTO SELEZIONATO","Hai richiesto l'azione di VENDITA \nche prevede di aver selezionato dei posti su cui affettuarla.\n")
 	def book_selections(self):
 		print("Prenoto posti selezionati")
 		if len(self.SelectionBuffer):
@@ -667,6 +718,13 @@ class Window(Frame):
 				pass
 			if self.SelectionReset['state']==DISABLED:
 				self.SelectionReset.config(state=NORMAL)
+			## Refresh the data dump for sessio backup
+			try:
+				with open("session_dumpdata.dat", "wb") as f:
+					pickle.dump(self.AAAed,f, protocol=pickle.HIGHEST_PROTOCOL)
+			except (pickle.PickleError) as e:
+				messagebox.showerror("Errore nel salvataggio della sessione", "Il programma ha trovato questo errore:/n {}/n Non è consentito il proseguimento./nIl programma verrà terminato. Premi OK per terminare".format(e))
+				exit(1)
 		
 			self.ActSelTL.destroy()
 		
@@ -946,7 +1004,6 @@ class Window(Frame):
 				print("Scelta : ID record evento = {} - da item {}".format(self.ev_id,self.event))
 				pass
 		def event_open():
-			from builtins import str
 			self.EvCh_TL.destroy()
 			print("Evento scelto e in apertura = {}".format(self.event))
 			if self.EventDataChanged:
@@ -1049,7 +1106,7 @@ class Window(Frame):
 				self.AAAed['Totals']['session_revenue']=Decimal('0.00')
 				
 				#cleaning
-				del Event_Prices,Opening_SoldSeat_prices,sql_cmd, result, data, price, idx
+				del Event_Prices,Opening_SoldSeat_prices,sql_cmd, result, data, price, idx,Event_Revenue
 				
 # 			sleep(5)						
 			
@@ -1060,35 +1117,13 @@ class Window(Frame):
 			self.RefreshBooking(mode='full')
 			self.RefreshTotalizers(mode=OPENING)
 			self.session_open = True
-												
-								
-				
-				
-				
-		## Open the MySQL connection using the tunnel 
-		# tunneling must be operative before and managed outside this code
-		try:
 			try:
-				self.mysql= MySQLdb.connect("127.0.0.1","ltc","ltc","ltcsite")
-				self.mysqlcursor=self.mysql.cursor()
-				self.mysqlcursor.execute("SELECT VERSION()")
-			except (MySQLdb.Error,MySQLdb.Warning) as e:  # @UndefinedVariable
-				print(e)
-				self.mysql_active=False
+				with open("session_dumpdata.dat", "wb") as f:
+					pickle.dump(self.AAAed,f, protocol=pickle.HIGHEST_PROTOCOL)
+			except (pickle.PickleError) as e:
+				messagebox.showerror("Errore nel salvataggio della sessione", "Il programma ha trovato questo errore:/n {}/n Non è consentito il proseguimento./nIl programma verrà terminato. Premi OK per terminare".format(e))
 				exit(1)
-		
-			self.mysql_active=True
-			data,=self.mysqlcursor.fetchone()
-			print("Version of mysql opened ={}".format(data))
-			
-		finally:
-			if self.mysql_active:
-				print("OK ---> Connection to MySqlDb establish!")
-			else:
-				print("KO ---> Connection to MySqlDb cannot be established!")
 
-		sql_cmd="USE ltcsite;"
-		self.mysqlcursor.execute(sql_cmd)
 		if running_mode == DEVELOPMENT:
 			sql_cmd="SELECT booking_show.title,booking_event.`id`,`event_date` FROM `booking_event` JOIN booking_show ON booking_event.show_id = booking_show.id ORDER BY booking_event.`event_date`;"
 		else:
@@ -1324,12 +1359,18 @@ class Window(Frame):
 			print("OK ---> MySQL connection closed!!!")
 		except:
 			print("OK ---> MySQL was not open. No action taken closing.")
+		if not self.EventDataChanged:
+			print("Remove 'session_dumpdata.dat' on clean exit")
+			os.remove("session_dumpdata.dat") if os.path.exists("session_dumpdata.dat") else None
+		else:
+			print("Don't remove 'session_dumpdata.dat' on not clean exit")
+			
 		print("Shutting down GUI. Good bye. Come back soon!")
 		exit()
 		
 if __name__ == '__main__':
 
-	
+
 	# Crea una time zone
 	rome = pytz.timezone("Europe/Rome")	
 	
@@ -1338,10 +1379,13 @@ if __name__ == '__main__':
 	root = Tk()
 	
 	root.geometry("1380x900")
-	
+
 	#creation of an instance
 	app = Window(root)
 	
-	
+	root.protocol('WM_DELETE_WINDOW', app.client_exit)  # root is your root window	
 	#mainloop 
 	root.mainloop() 
+
+
+
