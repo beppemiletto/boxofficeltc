@@ -9,8 +9,8 @@ for tunneling connection to mysql server if used from remote location
 '''
 # Simple enough, just import everything from tkinter.
 import gi
-gi.require_version('Gtk', '3.0')
-gi.require_version('Atspi', '2.0')
+##gi.require_version('Gtk', '3.0')
+##gi.require_version('Atspi', '2.0')
 # from gi.repository import Gtk, Gdk
 
 from tkinter import Tk,Frame,Label,Listbox,Entry, Toplevel, Button,Text,Menu
@@ -36,10 +36,10 @@ import os.path
 ## GLOBAL SETTINGS AND VARIABLE
 
 # FONTS FOR GUI
-HUGE_FONT = ("DejaVuSansMono", 14)
-LARGE_FONT = ("DejaVuSansMono", 10)
-NORM_FONT = ("DejaVuSansMono", 8)
-SMALL_FONT = ("DejaVuSansMono", 7)
+HUGE_FONT = ("DejaVuSansMono", 12)
+LARGE_FONT = ("DejaVuSansMono", 8)
+NORM_FONT = ("DejaVuSansMono", 6)
+SMALL_FONT = ("DejaVuSansMono", 4)
 # HUGE_FONT = ("Verdana", 16)
 # LARGE_FONT = ("Verdana", 12)
 # NORM_FONT = ("Verdana", 9)
