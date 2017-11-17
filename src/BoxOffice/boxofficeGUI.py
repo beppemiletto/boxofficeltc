@@ -31,6 +31,7 @@ from decimal import Decimal
 import time, pytz
 import pickle
 import os.path
+from orca.scripts import self_voicing
 
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
 ## GLOBAL SETTINGS AND VARIABLE
@@ -103,6 +104,7 @@ class Window(Frame):
 		self.TotalSoldFullPrice= 0
 		self.TotalSoldReducedPrice=0
 		self.TotalFreePrice=0
+		self.TotalSellsOperations=0
 		
 		# parameters that you want to send through the Frame class. 
 		Frame.__init__(self, master)   
@@ -253,7 +255,7 @@ class Window(Frame):
 		self.FrameSelectionActions.grid(columnspan=1)
 		
 		# Finestra con i posti selezionati
-		self.SelectionBufferText= Text(self.FrameSelectionActions,height = 20,width=30)
+		self.SelectionBufferText= Text(self.FrameSelectionActions,height = 16,width=30)
 		self.SelectionBufferText.grid(row=1,column=2,padx=(5,5),pady=(5,5),rowspan=4)
 		self.SelectionBufferText.insert(END,"Posti selezionati")
 		
@@ -346,7 +348,7 @@ class Window(Frame):
 		
 		#  Tabella Totalizzatori
 		self.TotalizersTitle= Label(self.FrameTotalizers,height = 1,width=30,font=HUGE_FONT,text="Totalizzatori")
-		self.TotalizersTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=5,sticky=E+N)
+		self.TotalizersTitle.grid(row=1,column=2,padx=(0,0),pady=(0,0),columnspan=5,sticky=E+N)
 		
 		TotalizersTv= Treeview(self.FrameTotalizers)
 		TotalizersTv['columns'] = ('full_price', 'reduced_price', 'free_price','revenue')
@@ -360,7 +362,7 @@ class Window(Frame):
 		TotalizersTv.column('free_price', anchor='center', width=100)
 		TotalizersTv.heading('revenue', text='Incasso')
 		TotalizersTv.column('revenue', anchor='center', width=100)
-		TotalizersTv.grid(sticky = (N,S,W,E))
+		TotalizersTv.grid(row=1,column=1,sticky = (N,S,W,E))
 		self.Totalizers = TotalizersTv
 		self.grid_rowconfigure(0, weight = 1)
 		self.grid_columnconfigure(0, weight = 1)
@@ -458,7 +460,7 @@ class Window(Frame):
 		img.place(x=0, y=0)
 		
 	def sell_selections(self):
-		print("Vendo posti selezionati")
+		print("Vendo posti selezionati, operazione vendita numero {}".format(self.TotalSellsOperations+1))
 		if len(self.SelectionBuffer):
 			self.ActionOnSelection(mode=SELL)
 		else:
@@ -751,7 +753,12 @@ class Window(Frame):
 			self.ActSelTL.title("Finestra per SPARE dei posti selezionati")
 			self.ActSelTL.config(bg='khaki1')
 			
-		self.ASTitleLbl=Label(self.ActSelTL,text="Posti selezionati",font = LARGE_FONT)
+		if mode == SELL or mode == SELLABOOK:
+			txt_lbl= "Operazione di vendita numero {}".format(self.TotalSellsOperations+1)
+		else:
+			txt_lbl= "Posti selezionati"
+			
+		self.ASTitleLbl=Label(self.ActSelTL,text=txt_lbl,font = LARGE_FONT)
 		self.ASTitleLbl.grid(row=gridrow,column=1,columnspan=3,padx=(5,5),pady=(5,5))
 		
 		self.ASSeatLbl=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
@@ -1104,6 +1111,10 @@ class Window(Frame):
 				# When opening event the Totalizers session are set to Zero
 				self.AAAed['Totals']['session_price']=Counter({'2': 0, '1': 0, '0': 0})
 				self.AAAed['Totals']['session_revenue']=Decimal('0.00')
+				
+				# Initialize the counter of selling operations in event current session
+				
+				self.TotalSellsOperations=0
 				
 				#cleaning
 				del Event_Prices,Opening_SoldSeat_prices,sql_cmd, result, data, price, idx,Event_Revenue
