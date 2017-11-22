@@ -31,16 +31,15 @@ from decimal import Decimal
 import time, pytz
 import pickle
 import os.path
-from orca.scripts import self_voicing
 
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
 ## GLOBAL SETTINGS AND VARIABLE
 
 # FONTS FOR GUI
 HUGE_FONT = ("DejaVuSansMono", 12)
-LARGE_FONT = ("DejaVuSansMono", 8)
-NORM_FONT = ("DejaVuSansMono", 6)
-SMALL_FONT = ("DejaVuSansMono", 4)
+LARGE_FONT = ("DejaVuSansMono", 10)
+NORM_FONT = ("DejaVuSansMono", 8)
+SMALL_FONT = ("DejaVuSansMono", 6)
 # HUGE_FONT = ("Verdana", 16)
 # LARGE_FONT = ("Verdana", 12)
 # NORM_FONT = ("Verdana", 9)
@@ -594,6 +593,9 @@ class Window(Frame):
 			self.AAAed['Totals']['totals_price'][str(FREE_PRICE)]=self.AAAed['Totals']['open_price'][str(FREE_PRICE)]+self.TotalFreePrice
 			
 			self.AAAed['Totals']['totals_revenue']=self.AAAed['Totals']['open_revenue']+self.AAAed['Totals']['session_revenue']
+
+			self.TotalSellsOperations+=1
+
 			
 						
 			self.RefreshSeats(mode='full', idx=None)
