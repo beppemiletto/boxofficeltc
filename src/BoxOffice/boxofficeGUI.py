@@ -573,7 +573,7 @@ class Window(Frame):
 
 			self.TotalSellsOperations+=1
 
-
+			
 
 			self.RefreshSeats(mode='full', idx=None)
 			self.SelectionBuffer=[]
@@ -685,7 +685,7 @@ class Window(Frame):
 			self.SelectionBuffer=[]
 			self.UpdateSelectionBufferText()
 
-
+			
 			## Here we are 20171027 1904
 
 			## Finally exit from TopLevel and Destroy it
