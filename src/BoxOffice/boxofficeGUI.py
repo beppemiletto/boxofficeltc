@@ -31,6 +31,9 @@ from decimal import Decimal
 import time, pytz
 import pickle
 import os.path
+from escpos.printer import Usb, Dummy
+import sys
+
 
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
 ## GLOBAL SETTINGS AND VARIABLE
@@ -55,6 +58,9 @@ SOLD		= '3'
 FREE_PRICE 		= 0
 REDUCED_PRICE 	= 1
 FULL_PRICE 		= 2
+
+# MNEMONIC TICKET NAME
+TICKET = ['GRATUITO', 'RIDOTTO',  'INTERO']
 
 
 # RUNNING MODE SET
@@ -82,7 +88,9 @@ OPENING		= 1
 SESSION		= 2
 FULL		= 3
 
-
+class BookingCodeError(LookupError):
+	'''Errore nel formato del codice di prenotazione letto.'''
+	
 # Here, we are creating our class, Window, and inheriting from the Frame
 # class. Frame is a class from the tkinter module. (see Lib/tkinter/__init__)
 class Window(Frame):
@@ -104,14 +112,25 @@ class Window(Frame):
 		self.TotalSoldReducedPrice=0
 		self.TotalFreePrice=0
 		self.TotalSellsOperations=0
-
+		
+		# Initialize the ESCPOS printer
+		try:
+			self.escprinter = Usb(0x0471, 0x0055,timeout=0,in_ep=0x82, out_ep=0x02)
+			print('Trovata stampante ESCPOS')
+		except:
+			print("Errore stampante ESCPOS: '{}'. Controllare la stampante".format(sys.exc_info()[0]))
+			self.escprinter = Dummy()
+			print('Procedo con Dummy driver.')
+			
+			
+		
 		# parameters that you want to send through the Frame class.
 		Frame.__init__(self, master)
 
 		#reference to the master widget, which is the tk window
 		self.master = master
 
-				#with that, we want to then run init_window, which doesn't yet exist
+		#with that, we want to then run init_window, which doesn't yet exist
 		self.init_window(mode=INIT)
 
 
@@ -282,7 +301,7 @@ class Window(Frame):
 					if row=='A':
 						padyt=25
 						padyb=2
-					elif row=='I' or row=='Q':
+					elif row=='H' or row=='Q':
 						padyt=2
 						padyb=25
 					else:
@@ -375,7 +394,7 @@ class Window(Frame):
 		# adds a command to the menu option, calling it exit, and the
 		# command it runs on event is client_exit
 		edit.add_command(label="Show Img", command=self.showImg)
-		edit.add_command(label="Show Text", command=self.showText)
+		#edit.add_command(label="Show Text", command=self.showText)
 
 		#added "file" to our menu
 		menu.add_cascade(label="Edit", menu=edit)
@@ -424,8 +443,7 @@ class Window(Frame):
 		self.mysqlcursor.execute(sql_cmd)
 
 
-	def showText(self):
-		pass
+
 	def showImg(self):
 		load = Image.open("chat.png")
 		render = ImageTk.PhotoImage(load)
@@ -493,18 +511,59 @@ class Window(Frame):
 			users_tmp= self.AAAed['event']['booking_user'].split(',')
 # 			price_tmp= self.AAAed['event']['booking_price'].split(',')
 			datetime_tmp= self.AAAed['event']['booking_datetime'].split(',')
+			#Initialize the SEATS PRINT STRING FOR PRINTER
+			pr_str_hdr="LABORATORIO TEATRALE DI CAMBIANO \nAssociazione Teatrale\nPIAZZA INNOVAZONE snc - 10020 CAMBIANO (TO)\nPI=CF 09762270016\n"
+			pr_str_hdr += "Data e ora: {}\n\n".format(time.strftime('%d-%m-%Y %H:%M:%S'))
+			pr_str_hdr += "Spettacolo: '{}'\n".format(self.AAAed['show']['title'])
+			pr_str_hdr += "Riscontro vendita numero {}\n".format(self.TotalSellsOperations+1)
+			
+			this_ticket_total= Decimal('0.00')
+			this_ticket_counters=[0, 0, 0]
+			pr_str_seats = "Posto     Ingresso  Prezzo    \n"
+			pr_str_hdr+=   "-----     --------  ------    \n"
+			
 			for idx,seat in enumerate(self.SelectionBuffer):
 				self.AAAed['seat_status'][seat]=SOLD
 				users_tmp[seat]= '2'
 				self.AAAed['seat_prices'][seat]= str(self.ASPriceLstb[idx].curselection()[0])
 				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
+				if int(self.AAAed['seat_prices'][seat])==FULL_PRICE:
+					this_price=self.AAAed['event']['price_full']
+				elif int(self.AAAed['seat_prices'][seat])==REDUCED_PRICE:
+					this_price=self.AAAed['event']['price_reduced']
+				else:
+					this_price=Decimal('0.00')
+				this_ticket_counters[int(self.AAAed['seat_prices'][seat])] +=1
+				this_ticket_total +=this_price
+				pr_str_seats +="\n{:<10}{:<10}{:<10}\n".format(self.seat_name[seat],TICKET[int(self.AAAed['seat_prices'][seat])], this_price )
+			pr_str_seats +="------------------------------- \n"
+			
+			pr_str_totals ="\n**** TOTALI *************\n"
+			pr_str_totals += "****   Interi:_____{0:02}\n".format(this_ticket_counters[FULL_PRICE])
+			pr_str_totals += "****  Ridotti:_____{0:02}\n".format(this_ticket_counters[REDUCED_PRICE])
+			pr_str_totals += "**** Gratuiti:_____{0:02}\n".format(this_ticket_counters[FREE_PRICE])
+			pr_str_totals += "\n"
+			pr_str_totals += "**** TOTALE EURO___{}\n".format(this_ticket_total)
+			
 
 			self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
 			self.AAAed['event']['booking_user']=','.join(users_tmp)
 			self.AAAed['event']['booking_price']=','.join(self.AAAed['seat_prices'])
 			self.AAAed['event']['booking_datetime']=','.join(datetime_tmp)
 
-			del users_tmp,datetime_tmp
+			self.escprinter.image('logo_bn.png')
+			self.escprinter.set(align='center', font='a',  width=1, height=1)
+			self.escprinter.text(pr_str_hdr)
+			self.escprinter.set(align='right', font='b',  width=2, height=2)
+			self.escprinter.text(pr_str_seats)
+			self.escprinter.set(align='right', font='a',  width=1, height=1)
+			self.escprinter.text(pr_str_totals)
+			self.escprinter.set(align='center', font='b',  width=3, height=3)
+			self.escprinter.text("Buona visione!")
+			self.escprinter.cut(mode=u'FULL')
+			
+
+			del users_tmp,datetime_tmp, this_price
 
 
 			sql_cmd = """UPDATE `booking_event`
@@ -711,10 +770,16 @@ class Window(Frame):
 
 		## DECLARE , INSTANTIATE AND POPULATE THE TOP LEVEL FRAME FOR SELL, BOOK
 		## or other actions on the selected seats
+		
 
+		
 		## LIST OF SEAT SELECTED , PRICES AND TYPES
 		self.ActSelTL=Toplevel(  background='lavender', borderwidth=1, container = 0, height = 800,takefocus=True,  width=600)
 		self.prices=[Decimal('0.00'),self.AAAed['event']['price_reduced'],self.AAAed['event']['price_full']]
+		# clean up the data in previous widget instantiates
+		for widget in self.ActSelTL.winfo_children():
+			widget.destroy()
+
 		gridrow=1
 		if mode == BOOK:
 			self.ActSelTL.title("Finestra per la prenotazione dei posti selezionati")
@@ -882,12 +947,16 @@ class Window(Frame):
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 		elif mode==SELLABOOK:
+			try:
+				self.ASGeneralitiesTitleLbl.destroy()
+			except:
+				pass
+				
 			gridrow=1
 			self.ASGeneralitiesTitleLbl=Label(self.ActSelTL,text="Riferimenti prenotazione {}".format(self.SellingBookingCode),font = LARGE_FONT)
 			self.ASGeneralitiesTitleLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
 
 			gridrow+=2
-
 			self.ASSurnameLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Cognome")
 			self.ASSurnameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 
@@ -906,26 +975,45 @@ class Window(Frame):
 			gridrow=1
 
 			gridrow+=2
-
 			self.ASSurnameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Cognome")
+			self.ASSurnameEnt.config(state=NORMAL)
+			self.ASSurnameEnt.delete(0, END)
 			self.ASSurnameEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][4])
 			self.ASSurnameEnt.config(state=DISABLED)
 			self.ASSurnameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
+			try:
+				self.ASNameEnt.destroy()
+			except:
+				pass
 			self.ASNameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Nome")
+			self.ASNameEnt.config(state=NORMAL)
+			self.ASNameEnt.delete(0, END)
 			self.ASNameEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][3])
 			self.ASNameEnt.config(state=DISABLED)
 			self.ASNameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
+			try:
+				self.ASEmailEnt.destroy()
+			except:
+				pass
 			self.ASEmailEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Email")
+			self.ASEmailEnt.config(state=NORMAL)
+			self.ASEmailEnt.delete(0, END)
 			self.ASEmailEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][5])
 			self.ASEmailEnt.config(state=DISABLED)
 			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 			gridrow+=1
+			try:
+				self.ASPhoneEnt.destroy()
+			except:
+				pass
 			self.ASPhoneEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Telefono")
+			self.ASPhoneEnt.config(state=NORMAL)
+			self.ASPhoneEnt.delete(0, END)
 			self.ASPhoneEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][8])
 			self.ASPhoneEnt.config(state=DISABLED)
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
@@ -952,18 +1040,45 @@ class Window(Frame):
 
 	def booking_code_window(self):
 		def insert_booking(event):
-			print(self.booking_code.get())
+			print(self.BCWbooking_code.get())
+			raw_code= self.BCWbooking_code.get()
 			self.booking_code_w.destroy()
+			try:
+				code_season_year_id = int(raw_code[3:4])
+				if code_season_year_id != self.AAAed['show']['season_year_id']:
+					raise BookingCodeError({"message":"Codice stagione della prenotazione non coerente.", "season":self.AAAed['show']['season_year_id']})
+				code_show_id=int(raw_code[5:7])
+				if code_show_id!= self.AAAed['event']['show_id']:
+					raise BookingCodeError({"message":"Codice spettacolo della prenotazione non coerente.", "show":self.AAAed['event']['show_id']})
+			except:
+				messagebox.showerror("ERRORE DI LETTURA DEL BARCODE","Il codice a barre letto non è coerente con una prenotazione o non è per lo spettacolo in corso.")
+			try:
+				booking_id = int(raw_code[8:12])
+			except ValueError:
+				messagebox.showerror("ERRORE DI LETTURA DEL BARCODE","Il codice a barre letto non è coerente con una prenotazione o non è per lo spettacolo in corso.")
+			booking_id_code = str(booking_id).zfill(6)
+			if booking_id_code in self.AAAed['booking']:
+				booking_obj= self.AAAed['booking'][booking_id_code]
+				if booking_obj[9]==0 :
+					self.GetBooking(booking_id_code,mode=SELECT)
+				else:
+					messagebox.showwarning('Errore Prenotazione', 'La prenotazione relativa al codice letto dal codice a barre risulta essere già stata venduta! CONTROLLARE LA SITUAZIONE DELLA SALA.')
+		def clear_BCW():
+			self.booking_code_w.destroy()
+		
 		self.booking_code_w = Toplevel(self)
-		self.label = Label(self.booking_code_w, text="Scannerizza il QR o Barcode della prenotazione")
-		self.label.pack(fill=X)
-		self.booking_code = Entry(self.booking_code_w)
-		self.booking_code.pack(fill=X)
-		self.booking_code.focus_set()
-		self.go= Button(self.booking_code_w,text="Procedi",command= insert_booking)
-		self.go.bind('<Button-1>',insert_booking)
+		self.BCWlabel = Label(self.booking_code_w, text="Scannerizza il QR o Barcode della prenotazione")
+		self.BCWlabel.pack(fill=X)
+		self.BCWbooking_code = Entry(self.booking_code_w, width= 20)
+		self.BCWbooking_code.pack(fill=X)
+		self.BCWbooking_code.focus_set()
+		self.BCWgo= Button(self.booking_code_w,bg='green', fg='white',text="Procedi",command= insert_booking)
+		self.BCWgo.pack(fill=X)
+		self.BCWcancel= Button(self.booking_code_w,bg='red', fg='yellow', text="Esci",command= clear_BCW)
+		self.BCWcancel.pack(fill=X)
+		self.BCWgo.bind('<Button-1>',insert_booking)
 		self.booking_code_w.bind('<Return>',insert_booking)
-		self.go.pack(fill=X)
+		
 			
 
 
@@ -1023,7 +1138,7 @@ class Window(Frame):
 				self.AAAed['event']['author_id']=data[9]
 				self.AAAed['event']['show_id']=data[10]
 				self.AAAed['event']['change']=data[11]
-				print(self.AAAed['event'])
+				#print(self.AAAed['event'])
 
 				# crea una list per uso diretto senza dover ripetere operazione di split tutte le volte
 				self.AAAed['seat_status']=self.AAAed['event']['booking_status'].split(',')
@@ -1044,7 +1159,7 @@ class Window(Frame):
 				self.AAAed['show']['director']=data[6]
 				self.AAAed['show']['cast']=data[7]
 				self.AAAed['show']['shw_code']=data[8]
-				print(self.AAAed['show'])
+				#print(self.AAAed['show'])
 
 				# query booking_bookingseason - low priority data
 				# putting information on ed (event dictionary) in the inner season dictionary
@@ -1058,7 +1173,7 @@ class Window(Frame):
 				self.AAAed['season']['end_date']=data[3]
 				self.AAAed['season']['booking_enabled']=data[4]
 				self.AAAed['season']['ssn_code']=data[5]
-				print(self.AAAed['season'])
+				#print(self.AAAed['season'])
 
 				# query booking_booking - high priority data
 				# putting information on ed (event dictionary) in the inner bookings dictionary
@@ -1072,7 +1187,7 @@ class Window(Frame):
 					for idx in range(result):  # @UnusedVariable
 						data=self.mysqlcursor.fetchone()
 						self.AAAed['booking'][str(data[0]).zfill(6)]=data
-						print(self.AAAed['booking'][str(data[0]).zfill(6)])
+					#	print(self.AAAed['booking'][str(data[0]).zfill(6)])
 
 				# Initialize opening Totalizers
 				# Extract the sold seats in a temporary dictionary
@@ -1082,7 +1197,7 @@ class Window(Frame):
 					if self.AAAed['seat_status'][idx]==SOLD:
 						Opening_SoldSeat_prices.append(price)
 				Event_Prices=Counter(Opening_SoldSeat_prices)
-				print(Event_Prices)
+				#print(Event_Prices)
 				self.AAAed['Totals']['open_price']=Event_Prices
 				Event_Revenue = Event_Prices[str(FULL_PRICE)]*self.AAAed['event']['price_full']+Event_Prices[str(REDUCED_PRICE)]*self.AAAed['event']['price_reduced']
 				self.AAAed['Totals']['open_revenue']=Event_Revenue
@@ -1213,17 +1328,17 @@ class Window(Frame):
 
 		if self.AAAed['booking']['quantity']:
 			self.LblBookingCodeTitle= Label(self.FrameBooking,height = 1,width=8,font=SMALL_FONT,text="Codice")
-			self.LblBookingCodeTitle.grid(row=2,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+			self.LblBookingCodeTitle.grid(row=3,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			self.LblBookingSurnameTitle= Label(self.FrameBooking,height = 1,width=15,font=SMALL_FONT,text="Cognome")
-			self.LblBookingSurnameTitle.grid(row=2,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+			self.LblBookingSurnameTitle.grid(row=3,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			self.LblBookingNameTitle= Label(self.FrameBooking,height = 1,width=15,font=SMALL_FONT,text="Nome")
-			self.LblBookingNameTitle.grid(row=2,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+			self.LblBookingNameTitle.grid(row=3,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			self.LblBookingPhoneTitle= Label(self.FrameBooking,height = 1,width=15,font=SMALL_FONT,text="Telefono")
-			self.LblBookingPhoneTitle.grid(row=2,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+			self.LblBookingPhoneTitle.grid(row=3,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			self.LblBookingDateTitle= Label(self.FrameBooking,height = 1,width=12,font=SMALL_FONT,text="Data")
-			self.LblBookingDateTitle.grid(row=2,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+			self.LblBookingDateTitle.grid(row=3,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			self.LblBookingSeatsTitle= Label(self.FrameBooking,height = 1,width=20,font=SMALL_FONT,text="Posti")
-			self.LblBookingSeatsTitle.grid(row=2,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+			self.LblBookingSeatsTitle.grid(row=3,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 
 			self.BtnBookingCode=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingSurname=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
@@ -1236,22 +1351,22 @@ class Window(Frame):
 				if not key== 'quantity' and not booking[9]:
 					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=NORMAL,bg='green2',fg='blue4',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
-					self.BtnBookingCode[idx].grid(row=3+3*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.BtnBookingCode[idx].grid(row=4+3*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = 1,width=15,
 												font=SMALL_FONT,text=booking[4])
-					self.LblBookingSurname[idx].grid(row=3+3*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSurname[idx].grid(row=4+3*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingName[idx]= Label(self.FrameBooking,height = 1,width=15,
 												font=SMALL_FONT,text=booking[3])
-					self.LblBookingName[idx].grid(row=3+3*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingName[idx].grid(row=4+3*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingPhone[idx]= Label(self.FrameBooking,height = 1,width=15,
 												font=SMALL_FONT,text=booking[8])
-					self.LblBookingPhone[idx].grid(row=3+3*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingPhone[idx].grid(row=4+3*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingDate[idx]= Label(self.FrameBooking,height = 1,width=12,
 												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
-					self.LblBookingDate[idx].grid(row=3+3*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingDate[idx].grid(row=4+3*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = 3,width=20,
 												font=SMALL_FONT,text=booking[2],wraplength=60,anchor=W,)
-					self.LblBookingSeats[idx].grid(row=3+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSeats[idx].grid(row=4+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 
 					idx+=1
 			for key,booking in sorted(self.AAAed['booking'].items()):
