@@ -368,36 +368,38 @@ class Window(Frame):
 
 		## CREATING A MENU FOR ROOT WINDOW ####################################
 		## FILE AND EDIT
-		menu = Menu(self.master)
-		self.master.config(menu=menu)
+		self.menubar = Menu(self.master)
+		self.master.config(menu=self.menubar)
 
 		# create the file object)
-		file = Menu(menu)
+		self.file = Menu(self.menubar)
 
 		# adds a command to the menu option, calling it exit, and the
-
-		file.add_command(label="Apri evento", command=self.OpenEvent)
+		self.file.add_command(label="Apri_evento", state=NORMAL, command=self.OpenEvent)
+		self.file.add_command(label="Chiudi", state= DISABLED,  command=self.CloseEvent)
+		
+		self.file.add_separator()
 
 
 		# adds a command to the menu option, calling it exit, and the
 		# command it runs on event is client_exit
-		file.add_command(label="Uscita", command=self.client_exit)
+		self.file.add_command(label="Uscita", command=self.client_exit)
 
 
 		#added "file" to our menu
-		menu.add_cascade(label="File", menu=file)
+		self.menubar.add_cascade(label="File", menu=self.file)
 
 
 		# create the edit object)
-		edit = Menu(menu)
+		self.edit = Menu(self.menubar)
 
 		# adds a command to the menu option, calling it exit, and the
 		# command it runs on event is client_exit
-		edit.add_command(label="Show Img", command=self.showImg)
+		self.edit.add_command(label="Show Img", command=self.showImg)
 		#edit.add_command(label="Show Text", command=self.showText)
 
 		#added "file" to our menu
-		menu.add_cascade(label="Edit", menu=edit)
+		self.menubar.add_cascade(label="Edit", menu=self.edit)
 
 		if os.path.exists("session_dumpdata.dat"):
 			message= """ Ho trovato un file con dati di una sessione precedente non chiusa correttamente.
@@ -1213,6 +1215,10 @@ class Window(Frame):
 				# Initialize the counter of selling operations in event current session
 
 				self.TotalSellsOperations=0
+				
+				# Enable the File Menu Item for Close event
+
+				self.file.entryconfig("Chiudi", state=NORMAL)
 
 				#cleaning
 				del Event_Prices,Opening_SoldSeat_prices,sql_cmd, result, data, price, idx,Event_Revenue
@@ -1271,6 +1277,18 @@ class Window(Frame):
 												command= self.EvCh_TL.destroy)
 		self.event_choice_exitbtn.grid(row=3,column=2)
 
+	def CloseEvent(self):
+		print("Chiusura dell'evento {}".format(self.AAAed['event']['id']))
+		if not self.EventDataChanged:
+			answer=messagebox.askyesno("Richiesta chiusura evento", "Sei sicuro di voler chiudere l'evento corrente?")
+			if answer =='yes':
+				pass
+		else:
+			answer=messagebox.askyesno("Dati non salvati", "Ci sono dati non salvati. Sei sicuro di voler chiudere l'evento corrente?")
+				
+				
+	
+	
 	def RefreshSeats(self,mode=None,idx=None):
 		def setseat(seat,st):
 			if st== AVAILABLE:
