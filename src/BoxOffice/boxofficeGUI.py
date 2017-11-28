@@ -419,6 +419,7 @@ class Window(Frame):
 				self.RefreshEventInfo(mode='full')
 				self.RefreshBooking(mode='full')
 				self.RefreshTotalizers(mode=OPENING)
+				self.file.entryconfig("Chiudi", state=NORMAL)
 		## Open the MySQL connection using the tunnel
 		# tunneling must be operative before and managed outside this code
 		try:
@@ -1493,7 +1494,11 @@ class Window(Frame):
 			print("Don't remove 'session_dumpdata.dat' on not clean exit")
 
 		print("Shutting down GUI. Good bye. Come back soon!")
-		exit()
+		# clean up the data in previous widget instantiates
+		for widget in self.BookingFrameGUI.winfo_children():
+			widget.destroy()
+		self.BookingFrameGUI.destroy()
+		exit(0)
 
 if __name__ == '__main__':
 
