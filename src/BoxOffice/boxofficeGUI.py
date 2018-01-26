@@ -33,6 +33,7 @@ import pickle
 import os.path
 from escpos.printer import Usb, Dummy
 import sys
+from orca.scripts import self_voicing
 
 
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
@@ -74,6 +75,7 @@ INIT 		= 1
 REINIT		= 2
 
 # modes for toggle seat buttons
+TOGGLE 		= 3
 DISABLE 	= 2
 SELECT 		= 1
 DESELECT 	= 0
@@ -88,6 +90,11 @@ CLEAR 		= 0
 OPENING		= 1
 SESSION		= 2
 FULL		= 3
+
+# modes for BookingSoldStatusManager function
+CHECK 		= 1
+SOLD_CHECK 	= 2
+UPDATE 		= 3
 
 class BookingCodeError(LookupError):
 	'''Errore nel formato del codice di prenotazione letto.'''
@@ -147,6 +154,9 @@ class Window(Frame):
 			self.master.title("LTC-BoxOffice")
 		elif mode == REINIT:
 			self.BookingFrameGUI.destroy()
+			self.BookingFrameGUI=None
+			if self.AAAed is not None:
+				self.AAAed=None
 			self.BookingFrameGUI=Frame(self.master,bg='lightgrey')
 			# allowing the widget to take the full space of the root window
 			self.BookingFrameGUI.pack(fill=BOTH, expand=1)
@@ -377,7 +387,7 @@ class Window(Frame):
 
 		# adds a command to the menu option, calling it exit, and the
 		self.file.add_command(label="Apri_evento", state=NORMAL, command=self.OpenEvent)
-		self.file.add_command(label="Chiudi", state= DISABLED,  command=self.CloseEvent)
+		self.file.add_command(label="Chiudi_evento", state= DISABLED,  command=self.CloseEvent)
 		
 		self.file.add_separator()
 
@@ -401,26 +411,28 @@ class Window(Frame):
 
 		#added "file" to our menu
 		self.menubar.add_cascade(label="Edit", menu=self.edit)
-
-		if os.path.exists("session_dumpdata.dat"):
-			message= """ Ho trovato un file con dati di una sessione precedente non chiusa correttamente.
-			Vuoi caricare i dati della sessione salvata sul disco?
-			"""
-			if messagebox.askyesno("Trovato un file dati di sessione non chiusa", message):
-
-				self.session_open = True
-				try:
-					with open("session_dumpdata.dat", "rb") as f:
-						self.AAAed=pickle.load(f)
-				except (pickle.PickleError) as e:
-					messagebox.showerror("Errore nella lettura della sessione", "Il programma ha trovato questo errore:/n {}/n Non è consentito il proseguimento./nIl programma verrà terminato. Premi OK per terminare".format(e))
-					exit(2)
-				## Main refresh of application data for event opening
-				self.RefreshSeats(mode='full')
-				self.RefreshEventInfo(mode='full')
-				self.RefreshBooking(mode='full')
-				self.RefreshTotalizers(mode=OPENING)
-				self.file.entryconfig("Chiudi", state=NORMAL)
+		if mode==INIT:
+			if os.path.exists("session_dumpdata.dat"):
+				message= """ Ho trovato un file con dati di una sessione precedente non chiusa correttamente.
+				Vuoi caricare i dati della sessione salvata sul disco?
+				"""
+				if messagebox.askyesno("Trovato un file dati di sessione non chiusa", message):
+	
+					self.session_open = True
+					try:
+						with open("session_dumpdata.dat", "rb") as f:
+							self.AAAed=pickle.load(f)
+					except (pickle.PickleError) as e:
+						messagebox.showerror("Errore nella lettura della sessione", "Il programma ha trovato questo errore:/n {}/n Non è consentito il proseguimento./nIl programma verrà terminato. Premi OK per terminare".format(e))
+						exit(2)
+					## Main refresh of application data for event opening
+					self.RefreshSeats(mode='full')
+					self.RefreshEventInfo(mode='full')
+					self.RefreshBooking(mode='full')
+					self.RefreshTotalizers(mode=OPENING)
+					self.file.entryconfig("Chiudi", state=NORMAL)
+				
+				
 		## Open the MySQL connection using the tunnel
 		# tunneling must be operative before and managed outside this code
 		try:
@@ -490,25 +502,51 @@ class Window(Frame):
 				print("Scelta : Prezzo = {} all'indice {}".format(self.value,self.index))
 				pass
 
+			ActSelUpdateTotalSell()
+# 			self.TotalPrice=Decimal('0.00')
+# 			for wl in self.ASPriceLbl:
+# 				self.TotalPrice+=Decimal(wl.cget('text'))
+# 			self.ASTotalAmountLbl.config(text=self.TotalPrice)
+# 
+# 
+# 			self.TotalTransactionFullPrice= 0
+# 			self.TotalTransactionReducedPrice=0
+# 			self.TotalTransactionFreePrice=0
+# 			for w in self.ASPriceLstb:
+# 				if w.curselection()[0]== FULL_PRICE:
+# 					self.TotalTransactionFullPrice+=1
+# 				elif w.curselection()[0]== REDUCED_PRICE:
+# 					self.TotalTransactionReducedPrice+=1
+# 				elif w.curselection()[0]== FREE_PRICE:
+# 					self.TotalTransactionFreePrice+=1
+# 			self.ASTotalFullPriceLbl.config(text=self.TotalTransactionFullPrice)
+# 			self.ASTotalReducedPriceLbl.config(text=self.TotalTransactionReducedPrice)
+# 			self.ASTotalFreePriceLbl.config(text=self.TotalTransactionFreePrice)
+		
+		def ActSelUpdateTotalSell():
 			self.TotalPrice=Decimal('0.00')
-			for wl in self.ASPriceLbl:
-				self.TotalPrice+=Decimal(wl.cget('text'))
+			for idx,wl in enumerate(self.ASPriceLbl):
+				if self.ASPSeatEnabledBool[idx]:
+					self.TotalPrice+=Decimal(wl.cget('text'))
 			self.ASTotalAmountLbl.config(text=self.TotalPrice)
 
 
 			self.TotalTransactionFullPrice= 0
 			self.TotalTransactionReducedPrice=0
 			self.TotalTransactionFreePrice=0
-			for w in self.ASPriceLstb:
-				if w.curselection()[0]== FULL_PRICE:
-					self.TotalTransactionFullPrice+=1
-				elif w.curselection()[0]== REDUCED_PRICE:
-					self.TotalTransactionReducedPrice+=1
-				elif w.curselection()[0]== FREE_PRICE:
-					self.TotalTransactionFreePrice+=1
+			for idx,w in enumerate(self.ASPriceLstb):
+				if self.ASPSeatEnabledBool:
+						
+					if w.curselection()[0]== FULL_PRICE:
+						self.TotalTransactionFullPrice+=1
+					elif w.curselection()[0]== REDUCED_PRICE:
+						self.TotalTransactionReducedPrice+=1
+					elif w.curselection()[0]== FREE_PRICE:
+						self.TotalTransactionFreePrice+=1
 			self.ASTotalFullPriceLbl.config(text=self.TotalTransactionFullPrice)
 			self.ASTotalReducedPriceLbl.config(text=self.TotalTransactionReducedPrice)
 			self.ASTotalFreePriceLbl.config(text=self.TotalTransactionFreePrice)
+			
 
 		def ActSelTLSell():
 			from builtins import str
@@ -587,7 +625,7 @@ class Window(Frame):
 			try:
 				if self.SellingBookingCode:
 					sql_cmd = """UPDATE `booking_booking`
-					SET `book_sold`= 1
+					SET `book_sold`= '1'
 					WHERE `booking_booking`.`id` = {};""".format(self.AAAed['booking'][self.SellingBookingCode][0])
 
 					print(sql_cmd)
@@ -703,8 +741,13 @@ class Window(Frame):
 			self.AAAed['booking']['quantity']+=1
 			created_date_tmp = time.strftime('%Y-%m-%d %H:%M:%S')
 			seats_booked_tmp = ''
+			book_sold= ''
 			for idx,seat in enumerate(self.SelectionBuffer):
 				seats_booked_tmp+='{}${},'.format(self.seat_name[seat],self.AAAed['seat_prices'][idx])
+				book_sold +='0,'
+			book_sold= book_sold.rstrip(',')
+			seats_booked_tmp=seats_booked_tmp.rstrip(',')
+			
 
 			cstr_name = self.ASNameEnt.get()
 			cstr_email = self.ASEmailEnt.get()
@@ -716,10 +759,10 @@ class Window(Frame):
 			#INSERT INTO `booking_booking`(`id`, `created_date`, `seats_booked`, `customer_name`, `customer_surname`, `customer_email`, `event_id`, `user_id_id`, `customer_phone`) VALUES ([value-1],[value-2],[value-3],[value-4],[value-5],[value-6],[value-7],[value-8],[value-9])
 			sql_cmd = """
 			INSERT INTO `booking_booking`
-			( `created_date`, `seats_booked`, `customer_name`, `customer_surname`, `customer_email`, `event_id`, `user_id_id`, `customer_phone`)
-			VALUES ('{}','{}','{}','{}','{}',{},{},'{}')
+			( `created_date`, `seats_booked`, `customer_name`, `customer_surname`, `customer_email`, `event_id`, `user_id_id`, `customer_phone`,`book_sold`)
+			VALUES ('{}','{}','{}','{}','{}',{},{},'{}',{})
 			;
-			""".format(created_date_tmp,seats_booked_tmp,cstr_name,cstr_surname,cstr_email,event_tmp,2,cstr_phone)
+			""".format(created_date_tmp,seats_booked_tmp,cstr_name,cstr_surname,cstr_email,event_tmp,2,cstr_phone,book_sold)
 			print(sql_cmd)
 			try:
 				self.mysqlcursor.execute(sql_cmd)
@@ -775,9 +818,24 @@ class Window(Frame):
 		## DECLARE , INSTANTIATE AND POPULATE THE TOP LEVEL FRAME FOR SELL, BOOK
 		## or other actions on the selected seats
 		
+		def ActSelToggleBbookseat(position,mode):
+			print("Command on button toggle seat booked got for position {} and mode {}".format(position, mode))
+			if mode== TOGGLE:
+				if self.ASPSeatEnabledBool[position]:
+					self.ASPSeatEnabledBool[position]=False
+					self.ASSeatBtn[position].config(bg='indian red',fg='ivory',relief=FLAT)
+				else:
+					self.ASPSeatEnabledBool[position]=True
+					self.ASSeatBtn[position].config( bg='pale green',fg='gray2',relief=RAISED)
+			print("Situazione posti da vendere aggiornata: {}".format(self.ASPSeatEnabledBool))		
+			ActSelUpdateTotalSell()			
+			
+		
 
 		
-		## LIST OF SEAT SELECTED , PRICES AND TYPES
+		#=======================================================================
+		# ## LIST OF SEAT SELECTED , PRICES AND TYPES
+		#=======================================================================
 		self.ActSelTL=Toplevel(  background='lavender', borderwidth=1, container = 0, height = 800,takefocus=True,  width=600)
 		self.prices=[Decimal('0.00'),self.AAAed['event']['price_reduced'],self.AAAed['event']['price_full']]
 		# clean up the data in previous widget instantiates
@@ -809,14 +867,28 @@ class Window(Frame):
 		self.ASTitleLbl=Label(self.ActSelTL,text=txt_lbl,font = LARGE_FONT)
 		self.ASTitleLbl.grid(row=gridrow,column=1,columnspan=3,padx=(5,5),pady=(5,5))
 
-		self.ASSeatLbl=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
+		
 		self.ASPriceLstb=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 		self.ASPriceLbl=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
+		if mode == SELLABOOK:
+			self.ASSeatBtn=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
+		else:
+			self.ASSeatLbl=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
+		self.ASPSeatEnabledBool=[True for x in range(len(self.SelectionBuffer))]  # @UnusedVariable]
+		print("Situazione posti da vendere init: {}".format(self.ASPSeatEnabledBool))
+
 # 		self.price=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 		gridrow+=2
 		for idx in range(len(self.SelectionBuffer)):
-			self.ASSeatLbl[idx]=Label(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]])
-			self.ASSeatLbl[idx].grid(row=gridrow,column=1,columnspan=1,padx=(5,5),pady=(5,5))
+			if mode==SELLABOOK:
+				self.ASSeatBtn[idx]=Button(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]],state=NORMAL,
+						width=2,activeforeground='red', bg='pale green',fg='gray2',relief=RAISED,
+						command= lambda position =idx : ActSelToggleBbookseat(position,mode=TOGGLE))
+				self.ASSeatBtn[idx].grid(row=gridrow,column=1,columnspan=1,padx=(5,5),pady=(5,5))
+				pass
+			else:
+				self.ASSeatLbl[idx]=Label(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]])
+				self.ASSeatLbl[idx].grid(row=gridrow,column=1,columnspan=1,padx=(5,5),pady=(5,5))
 
 			self.ASPriceLstb[idx]=Listbox(self.ActSelTL,selectmode=BROWSE)
 			self.ASPriceLstb[idx].insert(END,"Gratuito")
@@ -841,9 +913,12 @@ class Window(Frame):
 
 			self.toggle_status(self.SelectionBuffer[idx], DISABLE)
 			self.SelectionReset.config(state=DISABLED)
+		
 
 			gridrow+=1
+		
 
+		
 		gridrow+=1
 		self.ASTotalAmountTitle=Label(self.ActSelTL,font=LARGE_FONT,text="Totale prezzo ingressi")
 		self.ASTotalAmountTitle.grid(row=gridrow,column=1,columnspan=2,padx=(5,5),pady=(5,5))
@@ -1022,7 +1097,7 @@ class Window(Frame):
 			self.ASPhoneEnt.config(state=DISABLED)
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
-
+		ActSelUpdateTotalSell()
 
 	def toggle_status(self,idx,mode=None):
 		if mode == SELECT:
@@ -1220,7 +1295,7 @@ class Window(Frame):
 				
 				# Enable the File Menu Item for Close event
 
-				self.file.entryconfig("Chiudi", state=NORMAL)
+				self.file.entryconfig("Chiudi_evento", state=NORMAL)
 
 				#cleaning
 				del Event_Prices,Opening_SoldSeat_prices,sql_cmd, result, data, price, idx,Event_Revenue
@@ -1283,8 +1358,9 @@ class Window(Frame):
 		print("Chiusura dell'evento {}".format(self.AAAed['event']['id']))
 		if not self.EventDataChanged:
 			answer=messagebox.askyesno("Richiesta chiusura evento", "Sei sicuro di voler chiudere l'evento corrente?")
-			if answer =='yes':
-				pass
+			print(answer)
+			if answer ==True:
+				self.init_window(mode=REINIT)
 		else:
 			answer=messagebox.askyesno("Dati non salvati", "Ci sono dati non salvati. Sei sicuro di voler chiudere l'evento corrente?")
 				
@@ -1366,9 +1442,18 @@ class Window(Frame):
 			self.LblBookingPhone=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingDate=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingSeats=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
+			self.StringsBookingSold=['' for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			idx=0
 			for key,booking in sorted(self.AAAed['booking'].items()):
-				if not key== 'quantity' and not booking[9]:
+				if not key== 'quantity':
+					self.StringsBookingSold[idx]=booking[9]
+					sold_check_list,self.StringsBookingSold[idx],Update = self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=CHECK, SeatPosition=None, SeatsString=booking[2])
+					if Update:
+						self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=UPDATE, book_code=key)
+					sold_check = True
+					if '0' in sold_check_list:
+						sold_check=False
+				if not key== 'quantity' and not sold_check:
 					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=NORMAL,bg='green2',fg='blue4',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
 					self.BtnBookingCode[idx].grid(row=4+3*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
@@ -1389,8 +1474,15 @@ class Window(Frame):
 					self.LblBookingSeats[idx].grid(row=4+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 
 					idx+=1
+			idx=0
 			for key,booking in sorted(self.AAAed['booking'].items()):
-				if not key== 'quantity' and booking[9]:
+				if not key== 'quantity':
+					self.StringsBookingSold[idx]=booking[9]
+					sold_check_list,self.StringsBookingSold[idx],Update = self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=CHECK, SeatPosition=None, SeatsString=booking[2])
+					sold_check = True
+					if '0' in sold_check_list:
+						sold_check=False
+				if not key== 'quantity' and sold_check:
 					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=DISABLED,bg='IndianRed4',fg='snow2',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
 					self.BtnBookingCode[idx].grid(row=3+3*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
@@ -1481,6 +1573,62 @@ class Window(Frame):
 
 		self.ActionOnSelection(mode = SELLABOOK)
 
+	def BookingSoldStatusManager(self,SoldStatusString=None,mode=None,SeatPosition = None,SeatsString=None,book_code=None):
+		# modes for BookingSoldStatusManager function
+# 		CHECK 		= 1
+# 		SOLD_CHECK 	= 2
+# 		UPDATE 		= 3
+		if mode == None:
+			return
+		elif mode == CHECK:
+			SeatList=SeatsString.rstrip(',').split(',')
+			if SoldStatusString is not None:
+				SoldStatusList = SoldStatusString.split(',')
+				if len(SoldStatusList) != len(SeatList):
+					if len(SoldStatusList) < len(SeatList):
+						SoldStatusList=[]
+						for idx in range(len(SeatList)):
+							SoldStatusList.append('0')
+					else:
+						TmpList = SoldStatusList[:len(SeatList)]
+						SoldStatusList=TmpList
+					Update = True
+				else:
+					Update = False
+				for idx in range(len(SeatList)):
+					try:
+						if SoldStatusList[idx] == '0' or SoldStatusList[idx] =='1':
+							pass
+						else:
+							SoldStatusList[idx] = '0'
+					except:
+						print("Errore nella definizione della stringa SoldStatus")
+			else:
+				SoldStatusList=[]
+				for idx in range(len(SeatList)):
+					SoldStatusList.append('0')
+				Update=True
+			if Update:
+				SoldStatusString=''
+				SoldStatusString=','.join(SoldStatusList)
+			return SoldStatusList,SoldStatusString,Update
+		elif mode ==UPDATE:
+			id = int(book_code)
+			sql_cmd = """
+				UPDATE `booking_booking` SET 
+				 `book_sold` = '{}' WHERE id = {} 
+				;
+				""".format(SoldStatusString,id)
+			print(sql_cmd)
+			try:
+				self.mysqlcursor.execute(sql_cmd)
+				self.mysql.commit()
+			except:
+				self.mysql.rollback()
+						
+			
+			
+
 
 	def client_exit(self):
 		try:
@@ -1511,7 +1659,7 @@ if __name__ == '__main__':
 	# you can later have windows within windows.
 	root = Tk()
 
-	root.geometry("1380x900")
+	root.geometry("1600x900")
 
 	#creation of an instance
 	app = Window(root)
