@@ -75,6 +75,7 @@ INIT 		= 1
 REINIT		= 2
 
 # modes for toggle seat buttons
+REQUEST_CHANGE = 4
 TOGGLE 		= 3
 DISABLE 	= 2
 SELECT 		= 1
@@ -546,7 +547,143 @@ class Window(Frame):
 			self.ASTotalFullPriceLbl.config(text=self.TotalTransactionFullPrice)
 			self.ASTotalReducedPriceLbl.config(text=self.TotalTransactionReducedPrice)
 			self.ASTotalFreePriceLbl.config(text=self.TotalTransactionFreePrice)
+		
+		def ActSelTLSellABook():
+			from builtins import str
+			users_tmp= self.AAAed['event']['booking_user'].split(',')
+# 			price_tmp= self.AAAed['event']['booking_price'].split(',')
+			datetime_tmp= self.AAAed['event']['booking_datetime'].split(',')
+			#Initialize the SEATS PRINT STRING FOR PRINTER
+			pr_str_hdr="LABORATORIO TEATRALE DI CAMBIANO \nAssociazione Teatrale\nPIAZZA INNOVAZONE snc - 10020 CAMBIANO (TO)\nPI=CF 09762270016\n"
+			pr_str_hdr += "Data e ora: {}\n\n".format(time.strftime('%d-%m-%Y %H:%M:%S'))
+			pr_str_hdr += "Spettacolo: '{}'\n".format(self.AAAed['show']['title'])
+			pr_str_hdr += "Riscontro vendita numero {}\n".format(self.TotalSellsOperations+1)
 			
+			this_ticket_total= Decimal('0.00')
+			this_ticket_counters=[0, 0, 0]
+			pr_str_seats = "Posto     Ingresso  Prezzo    \n"
+			pr_str_hdr+=   "-----     --------  ------    \n"
+			
+			for idx,seat in enumerate(self.SelectionBuffer):
+				
+				self.AAAed['seat_status'][seat]=SOLD
+				users_tmp[seat]= '2'
+				self.AAAed['seat_prices'][seat]= str(self.ASPriceLstb[idx].curselection()[0])
+				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
+				if int(self.AAAed['seat_prices'][seat])==FULL_PRICE:
+					this_price=self.AAAed['event']['price_full']
+				elif int(self.AAAed['seat_prices'][seat])==REDUCED_PRICE:
+					this_price=self.AAAed['event']['price_reduced']
+				else:
+					this_price=Decimal('0.00')
+				this_ticket_counters[int(self.AAAed['seat_prices'][seat])] +=1
+				this_ticket_total +=this_price
+				pr_str_seats +="\n{:<10}{:<10}{:<10}\n".format(self.seat_name[seat],TICKET[int(self.AAAed['seat_prices'][seat])], this_price )
+			pr_str_seats +="------------------------------- \n"
+			
+			pr_str_totals ="\n**** TOTALI *************\n"
+			pr_str_totals += "****   Interi:_____{0:02}\n".format(this_ticket_counters[FULL_PRICE])
+			pr_str_totals += "****  Ridotti:_____{0:02}\n".format(this_ticket_counters[REDUCED_PRICE])
+			pr_str_totals += "**** Gratuiti:_____{0:02}\n".format(this_ticket_counters[FREE_PRICE])
+			pr_str_totals += "\n"
+			pr_str_totals += "**** TOTALE EURO___{}\n".format(this_ticket_total)
+			
+
+			self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
+			self.AAAed['event']['booking_user']=','.join(users_tmp)
+			self.AAAed['event']['booking_price']=','.join(self.AAAed['seat_prices'])
+			self.AAAed['event']['booking_datetime']=','.join(datetime_tmp)
+
+			self.escprinter.image('logo_bn.png')
+			self.escprinter.set(align='center', font='a',  width=1, height=1)
+			self.escprinter.text(pr_str_hdr)
+			self.escprinter.set(align='right', font='b',  width=2, height=2)
+			self.escprinter.text(pr_str_seats)
+			self.escprinter.set(align='right', font='a',  width=1, height=1)
+			self.escprinter.text(pr_str_totals)
+			self.escprinter.set(align='center', font='b',  width=3, height=3)
+			self.escprinter.text("Buona visione!")
+			self.escprinter.cut(mode=u'FULL')
+			
+
+			del users_tmp,datetime_tmp, this_price
+
+
+			sql_cmd = """UPDATE `booking_event`
+			SET `booking_status`='{}',
+			`booking_user`='{}',
+			`booking_price`='{}',`booking_datetime`='{}'
+			WHERE `booking_event`.`id` = {};""".format(self.AAAed['event']['booking_status'],self.AAAed['event']['booking_user'],self.AAAed['event']['booking_price'],self.AAAed['event']['booking_datetime'],self.AAAed['event']['id'])
+
+			self.EventDataChanged=True
+			try:
+				self.mysqlcursor.execute(sql_cmd)
+				self.mysql.commit()
+				self.EventDataChanged=False
+			except:
+				self.mysql.rollback()
+
+			try:
+				if self.SellingBookingCode:
+					sql_cmd = """UPDATE `booking_booking`
+					SET `book_sold`= '1'
+					WHERE `booking_booking`.`id` = {};""".format(self.AAAed['booking'][self.SellingBookingCode][0])
+
+					print(sql_cmd)
+					self.EventDataChanged=True
+					try:
+						self.mysqlcursor.execute(sql_cmd)
+						self.mysql.commit()
+						self.EventDataChanged=False
+					except:
+						self.mysql.rollback()
+					finally:
+						try:
+							sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.AAAed['event']['id']))
+							result=self.mysqlcursor.execute(sql_cmd)
+							if result < 1:
+								self.AAAed['booking']['quantity']=result
+							else:
+								self.AAAed['booking']['quantity']=result
+								for idx in range(result):  # @UnusedVariable
+									data=self.mysqlcursor.fetchone()
+									self.AAAed['booking'][str(data[0]).zfill(6)]=data
+									print(self.AAAed['booking'][str(data[0]).zfill(6)])
+
+								self.RefreshBooking(mode='full')
+						except:
+							pass
+						print("Mysql executed")
+			except:
+				pass
+
+			# Update the Totalizer for current session and related Totals
+			self.TotalSoldFullPrice+=self.TotalTransactionFullPrice
+			self.TotalSoldReducedPrice+=self.TotalTransactionReducedPrice
+			self.TotalFreePrice+=self.TotalTransactionFreePrice
+
+			self.AAAed['Totals']['session_price']=Counter({str(FULL_PRICE):self.TotalSoldFullPrice,
+															str(REDUCED_PRICE):self.TotalSoldReducedPrice,
+															str(FREE_PRICE):self.TotalFreePrice})
+			self.AAAed['Totals']['session_revenue']+=self.TotalPrice
+
+			self.AAAed['Totals']['totals_price'][str(FULL_PRICE)]=self.AAAed['Totals']['open_price'][str(FULL_PRICE)]+self.TotalSoldFullPrice
+			self.AAAed['Totals']['totals_price'][str(REDUCED_PRICE)]=self.AAAed['Totals']['open_price'][str(REDUCED_PRICE)]+self.TotalSoldReducedPrice
+			self.AAAed['Totals']['totals_price'][str(FREE_PRICE)]=self.AAAed['Totals']['open_price'][str(FREE_PRICE)]+self.TotalFreePrice
+
+			self.AAAed['Totals']['totals_revenue']=self.AAAed['Totals']['open_revenue']+self.AAAed['Totals']['session_revenue']
+
+			self.TotalSellsOperations+=1
+
+			
+
+			self.RefreshSeats(mode='full', idx=None)
+			self.SelectionBuffer=[]
+			self.UpdateSelectionBufferText()
+			self.RefreshTotalizers(mode=SESSION)
+
+			## Finally exit from TopLevel and Destroy it
+			ActSelTLExit()
 
 		def ActSelTLSell():
 			from builtins import str
@@ -760,7 +897,7 @@ class Window(Frame):
 			sql_cmd = """
 			INSERT INTO `booking_booking`
 			( `created_date`, `seats_booked`, `customer_name`, `customer_surname`, `customer_email`, `event_id`, `user_id_id`, `customer_phone`,`book_sold`)
-			VALUES ('{}','{}','{}','{}','{}',{},{},'{}',{})
+			VALUES ('{}','{}','{}','{}','{}',{},{},'{}','{}')
 			;
 			""".format(created_date_tmp,seats_booked_tmp,cstr_name,cstr_surname,cstr_email,event_tmp,2,cstr_phone,book_sold)
 			print(sql_cmd)
@@ -824,9 +961,11 @@ class Window(Frame):
 				if self.ASPSeatEnabledBool[position]:
 					self.ASPSeatEnabledBool[position]=False
 					self.ASSeatBtn[position].config(bg='indian red',fg='ivory',relief=FLAT)
+					
 				else:
 					self.ASPSeatEnabledBool[position]=True
 					self.ASSeatBtn[position].config( bg='pale green',fg='gray2',relief=RAISED)
+				
 			print("Situazione posti da vendere aggiornata: {}".format(self.ASPSeatEnabledBool))		
 			ActSelUpdateTotalSell()			
 			
@@ -879,11 +1018,21 @@ class Window(Frame):
 
 # 		self.price=[0 for x in range(len(self.SelectionBuffer))]  # @UnusedVariable
 		gridrow+=2
+
 		for idx in range(len(self.SelectionBuffer)):
 			if mode==SELLABOOK:
-				self.ASSeatBtn[idx]=Button(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]],state=NORMAL,
-						width=2,activeforeground='red', bg='pale green',fg='gray2',relief=RAISED,
-						command= lambda position =idx : ActSelToggleBbookseat(position,mode=TOGGLE))
+				buttonstatus = int(self.ListSoldStatus[idx])
+				
+				if not buttonstatus:
+					self.ASSeatBtn[idx]=Button(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]],state=NORMAL,
+							width=2,activeforeground='red', bg='pale green',fg='gray2',relief=RAISED,
+							command= lambda position =idx : ActSelToggleBbookseat(position,mode=TOGGLE))
+					self.ASPSeatEnabledBool[idx]=True
+				else:
+					self.ASSeatBtn[idx]=Button(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]],state=NORMAL,
+							width=2, bg='red',fg='gray2',relief=SUNKEN ,
+							command= lambda position =idx : ActSelToggleBbookseat(position,mode=REQUEST_CHANGE))
+					self.ASPSeatEnabledBool[idx]=False
 				self.ASSeatBtn[idx].grid(row=gridrow,column=1,columnspan=1,padx=(5,5),pady=(5,5))
 				pass
 			else:
@@ -963,7 +1112,7 @@ class Window(Frame):
 
 
 		gridrow+=2
-		if mode == SELLABOOK or mode == SELL:
+		if mode == SELL:
 			btn_text = 'Conferma Vendita'
 			self.ASSellBtn=Button(self.ActSelTL,font=NORM_FONT,text=btn_text,state=NORMAL,
 					width=25,activebackground='red',activeforeground='yellow',
@@ -971,11 +1120,17 @@ class Window(Frame):
 			self.ASSellBtn.grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
 		elif mode == BOOK:
 			btn_text = 'Registra Prenotazione'
-
 			self.ASBookBtn=Button(self.ActSelTL,font=NORM_FONT,text=btn_text,state=NORMAL,
 								width=25,activebackground='red',activeforeground='yellow',
 								bg='green',fg='snow',command= ActSelTLBook)
 			self.ASBookBtn.grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
+		elif mode== SELLABOOK:
+			btn_text = 'Conferma Vendita Prenotazione'
+			self.ASSellBtn=Button(self.ActSelTL,font=NORM_FONT,text=btn_text,state=NORMAL,
+					width=25,activebackground='red',activeforeground='yellow',
+					bg='green',fg='snow',command= ActSelTLSellABook)
+			self.ASSellBtn.grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
+			
 		self.ASexitBtn=Button(self.ActSelTL,font=NORM_FONT,text='Esci',state=NORMAL,
 							width=6,activebackground='red',activeforeground='yellow',
 												bg='snow4',fg='snow',
@@ -1559,6 +1714,7 @@ class Window(Frame):
 					self.booking_prices.append(FULL_PRICE)
 
 		booking_seats=self.AAAed['booking'][code][2].split(',')
+		self.ListSoldStatus=self.AAAed['booking'][code][9].split(',')
 
 		for seat in booking_seats:
 			if seat !='':
