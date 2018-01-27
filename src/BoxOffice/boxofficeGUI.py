@@ -33,7 +33,7 @@ import pickle
 import os.path
 from escpos.printer import Usb, Dummy
 import sys
-from orca.scripts import self_voicing
+
 
 
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
@@ -68,7 +68,7 @@ TICKET = ['GRATUITO', 'RIDOTTO',  'INTERO']
 # RUNNING MODE SET
 DEVELOPMENT = 1
 PRODUCTION  = 0
-running_mode = DEVELOPMENT
+running_mode = PRODUCTION
 
 #mode for Windows INIT
 INIT 		= 1
@@ -549,142 +549,153 @@ class Window(Frame):
 			self.ASTotalFreePriceLbl.config(text=self.TotalTransactionFreePrice)
 		
 		def ActSelTLSellABook():
-			from builtins import str
-			users_tmp= self.AAAed['event']['booking_user'].split(',')
-# 			price_tmp= self.AAAed['event']['booking_price'].split(',')
-			datetime_tmp= self.AAAed['event']['booking_datetime'].split(',')
-			#Initialize the SEATS PRINT STRING FOR PRINTER
-			pr_str_hdr="LABORATORIO TEATRALE DI CAMBIANO \nAssociazione Teatrale\nPIAZZA INNOVAZONE snc - 10020 CAMBIANO (TO)\nPI=CF 09762270016\n"
-			pr_str_hdr += "Data e ora: {}\n\n".format(time.strftime('%d-%m-%Y %H:%M:%S'))
-			pr_str_hdr += "Spettacolo: '{}'\n".format(self.AAAed['show']['title'])
-			pr_str_hdr += "Riscontro vendita numero {}\n".format(self.TotalSellsOperations+1)
-			
-			this_ticket_total= Decimal('0.00')
-			this_ticket_counters=[0, 0, 0]
-			pr_str_seats = "Posto     Ingresso  Prezzo    \n"
-			pr_str_hdr+=   "-----     --------  ------    \n"
-			
-			for idx,seat in enumerate(self.SelectionBuffer):
+			if True in self.ASPSeatEnabledBool:
+				from builtins import str
+				users_tmp= self.AAAed['event']['booking_user'].split(',')
+	# 			price_tmp= self.AAAed['event']['booking_price'].split(',')
+				datetime_tmp= self.AAAed['event']['booking_datetime'].split(',')
+				#Initialize the SEATS PRINT STRING FOR PRINTER
+				pr_str_hdr="LABORATORIO TEATRALE DI CAMBIANO \nAssociazione Teatrale\nPIAZZA INNOVAZONE snc - 10020 CAMBIANO (TO)\nPI=CF 09762270016\n"
+				pr_str_hdr += "Data e ora: {}\n\n".format(time.strftime('%d-%m-%Y %H:%M:%S'))
+				pr_str_hdr += "Spettacolo: '{}'\n".format(self.AAAed['show']['title'])
+				pr_str_hdr += "Riscontro vendita numero {}\n".format(self.TotalSellsOperations+1)
 				
-				self.AAAed['seat_status'][seat]=SOLD
-				users_tmp[seat]= '2'
-				self.AAAed['seat_prices'][seat]= str(self.ASPriceLstb[idx].curselection()[0])
-				datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
-				if int(self.AAAed['seat_prices'][seat])==FULL_PRICE:
-					this_price=self.AAAed['event']['price_full']
-				elif int(self.AAAed['seat_prices'][seat])==REDUCED_PRICE:
-					this_price=self.AAAed['event']['price_reduced']
-				else:
-					this_price=Decimal('0.00')
-				this_ticket_counters[int(self.AAAed['seat_prices'][seat])] +=1
-				this_ticket_total +=this_price
-				pr_str_seats +="\n{:<10}{:<10}{:<10}\n".format(self.seat_name[seat],TICKET[int(self.AAAed['seat_prices'][seat])], this_price )
-			pr_str_seats +="------------------------------- \n"
-			
-			pr_str_totals ="\n**** TOTALI *************\n"
-			pr_str_totals += "****   Interi:_____{0:02}\n".format(this_ticket_counters[FULL_PRICE])
-			pr_str_totals += "****  Ridotti:_____{0:02}\n".format(this_ticket_counters[REDUCED_PRICE])
-			pr_str_totals += "**** Gratuiti:_____{0:02}\n".format(this_ticket_counters[FREE_PRICE])
-			pr_str_totals += "\n"
-			pr_str_totals += "**** TOTALE EURO___{}\n".format(this_ticket_total)
-			
-
-			self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
-			self.AAAed['event']['booking_user']=','.join(users_tmp)
-			self.AAAed['event']['booking_price']=','.join(self.AAAed['seat_prices'])
-			self.AAAed['event']['booking_datetime']=','.join(datetime_tmp)
-
-			self.escprinter.image('logo_bn.png')
-			self.escprinter.set(align='center', font='a',  width=1, height=1)
-			self.escprinter.text(pr_str_hdr)
-			self.escprinter.set(align='right', font='b',  width=2, height=2)
-			self.escprinter.text(pr_str_seats)
-			self.escprinter.set(align='right', font='a',  width=1, height=1)
-			self.escprinter.text(pr_str_totals)
-			self.escprinter.set(align='center', font='b',  width=3, height=3)
-			self.escprinter.text("Buona visione!")
-			self.escprinter.cut(mode=u'FULL')
-			
-
-			del users_tmp,datetime_tmp, this_price
-
-
-			sql_cmd = """UPDATE `booking_event`
-			SET `booking_status`='{}',
-			`booking_user`='{}',
-			`booking_price`='{}',`booking_datetime`='{}'
-			WHERE `booking_event`.`id` = {};""".format(self.AAAed['event']['booking_status'],self.AAAed['event']['booking_user'],self.AAAed['event']['booking_price'],self.AAAed['event']['booking_datetime'],self.AAAed['event']['id'])
-
-			self.EventDataChanged=True
-			try:
-				self.mysqlcursor.execute(sql_cmd)
-				self.mysql.commit()
-				self.EventDataChanged=False
-			except:
-				self.mysql.rollback()
-
-			try:
-				if self.SellingBookingCode:
-					sql_cmd = """UPDATE `booking_booking`
-					SET `book_sold`= '1'
-					WHERE `booking_booking`.`id` = {};""".format(self.AAAed['booking'][self.SellingBookingCode][0])
-
-					print(sql_cmd)
-					self.EventDataChanged=True
-					try:
-						self.mysqlcursor.execute(sql_cmd)
-						self.mysql.commit()
-						self.EventDataChanged=False
-					except:
-						self.mysql.rollback()
-					finally:
+				this_ticket_total= Decimal('0.00')
+				this_ticket_counters=[0, 0, 0]
+				pr_str_seats = "Posto     Ingresso  Prezzo    \n"
+				pr_str_hdr+=   "-----     --------  ------    \n"
+				string_for_booking_update=''
+				for idx,seat in enumerate(self.SelectionBuffer):
+					if self.ASPSeatEnabledBool[idx]:
+	
+						string_for_booking_update+='1,'
+						self.AAAed['seat_status'][seat]=SOLD
+						users_tmp[seat]= '2'
+						self.AAAed['seat_prices'][seat]= str(self.ASPriceLstb[idx].curselection()[0])
+						datetime_tmp[seat] = time.strftime('%Y-%m-%d %H:%M:%S')
+						if int(self.AAAed['seat_prices'][seat])==FULL_PRICE:
+							this_price=self.AAAed['event']['price_full']
+						elif int(self.AAAed['seat_prices'][seat])==REDUCED_PRICE:
+							this_price=self.AAAed['event']['price_reduced']
+						else:
+							this_price=Decimal('0.00')
+						this_ticket_counters[int(self.AAAed['seat_prices'][seat])] +=1
+						this_ticket_total +=this_price
+						pr_str_seats +="\n{:<10}{:<10}{:<10}\n".format(self.seat_name[seat],TICKET[int(self.AAAed['seat_prices'][seat])], this_price )
+					else:
+						string_for_booking_update+='{},'.format(self.ListSoldStatus[idx])
+				string_for_booking_update=string_for_booking_update.rstrip(',')					
+				pr_str_seats +="------------------------------- \n"
+				
+				pr_str_totals ="\n**** TOTALI *************\n"
+				pr_str_totals += "****   Interi:_____{0:02}\n".format(this_ticket_counters[FULL_PRICE])
+				pr_str_totals += "****  Ridotti:_____{0:02}\n".format(this_ticket_counters[REDUCED_PRICE])
+				pr_str_totals += "**** Gratuiti:_____{0:02}\n".format(this_ticket_counters[FREE_PRICE])
+				pr_str_totals += "\n"
+				pr_str_totals += "**** TOTALE EURO___{}\n".format(this_ticket_total)
+				
+	
+				self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
+				self.AAAed['event']['booking_user']=','.join(users_tmp)
+				self.AAAed['event']['booking_price']=','.join(self.AAAed['seat_prices'])
+				self.AAAed['event']['booking_datetime']=','.join(datetime_tmp)
+	
+				self.escprinter.image('logo_bn.png')
+				self.escprinter.set(align='center', font='a',  width=1, height=1)
+				self.escprinter.text(pr_str_hdr)
+				self.escprinter.set(align='right', font='b',  width=2, height=2)
+				self.escprinter.text(pr_str_seats)
+				self.escprinter.set(align='right', font='a',  width=1, height=1)
+				self.escprinter.text(pr_str_totals)
+				self.escprinter.set(align='center', font='b',  width=3, height=3)
+				self.escprinter.text("Buona visione!")
+				self.escprinter.cut(mode=u'FULL')
+				
+	
+				del users_tmp,datetime_tmp, this_price
+	
+	
+				sql_cmd = """UPDATE `booking_event`
+				SET `booking_status`='{}',
+				`booking_user`='{}',
+				`booking_price`='{}',`booking_datetime`='{}'
+				WHERE `booking_event`.`id` = {};""".format(self.AAAed['event']['booking_status'],self.AAAed['event']['booking_user'],self.AAAed['event']['booking_price'],self.AAAed['event']['booking_datetime'],self.AAAed['event']['id'])
+	
+				self.EventDataChanged=True
+				try:
+					self.mysqlcursor.execute(sql_cmd)
+					self.mysql.commit()
+					self.EventDataChanged=False
+				except:
+					self.mysql.rollback()
+	
+				try:
+					if self.SellingBookingCode:
+						sql_cmd = """UPDATE `booking_booking`
+						SET `book_sold`= '{}'
+						WHERE `booking_booking`.`id` = {};""".format(string_for_booking_update ,self.AAAed['booking'][self.SellingBookingCode][0])
+	
+						print(sql_cmd)
+						self.EventDataChanged=True
 						try:
-							sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.AAAed['event']['id']))
-							result=self.mysqlcursor.execute(sql_cmd)
-							if result < 1:
-								self.AAAed['booking']['quantity']=result
-							else:
-								self.AAAed['booking']['quantity']=result
-								for idx in range(result):  # @UnusedVariable
-									data=self.mysqlcursor.fetchone()
-									self.AAAed['booking'][str(data[0]).zfill(6)]=data
-									print(self.AAAed['booking'][str(data[0]).zfill(6)])
-
-								self.RefreshBooking(mode='full')
+							self.mysqlcursor.execute(sql_cmd)
+							self.mysql.commit()
+							self.EventDataChanged=False
 						except:
-							pass
-						print("Mysql executed")
-			except:
-				pass
-
-			# Update the Totalizer for current session and related Totals
-			self.TotalSoldFullPrice+=self.TotalTransactionFullPrice
-			self.TotalSoldReducedPrice+=self.TotalTransactionReducedPrice
-			self.TotalFreePrice+=self.TotalTransactionFreePrice
-
-			self.AAAed['Totals']['session_price']=Counter({str(FULL_PRICE):self.TotalSoldFullPrice,
-															str(REDUCED_PRICE):self.TotalSoldReducedPrice,
-															str(FREE_PRICE):self.TotalFreePrice})
-			self.AAAed['Totals']['session_revenue']+=self.TotalPrice
-
-			self.AAAed['Totals']['totals_price'][str(FULL_PRICE)]=self.AAAed['Totals']['open_price'][str(FULL_PRICE)]+self.TotalSoldFullPrice
-			self.AAAed['Totals']['totals_price'][str(REDUCED_PRICE)]=self.AAAed['Totals']['open_price'][str(REDUCED_PRICE)]+self.TotalSoldReducedPrice
-			self.AAAed['Totals']['totals_price'][str(FREE_PRICE)]=self.AAAed['Totals']['open_price'][str(FREE_PRICE)]+self.TotalFreePrice
-
-			self.AAAed['Totals']['totals_revenue']=self.AAAed['Totals']['open_revenue']+self.AAAed['Totals']['session_revenue']
-
-			self.TotalSellsOperations+=1
-
-			
-
-			self.RefreshSeats(mode='full', idx=None)
-			self.SelectionBuffer=[]
-			self.UpdateSelectionBufferText()
-			self.RefreshTotalizers(mode=SESSION)
-
-			## Finally exit from TopLevel and Destroy it
-			ActSelTLExit()
-
+							self.mysql.rollback()
+						finally:
+							try:
+								sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.AAAed['event']['id']))
+								result=self.mysqlcursor.execute(sql_cmd)
+								if result < 1:
+									self.AAAed['booking']['quantity']=result
+								else:
+									self.AAAed['booking']['quantity']=result
+									for idx in range(result):  # @UnusedVariable
+										data=self.mysqlcursor.fetchone()
+										self.AAAed['booking'][str(data[0]).zfill(6)]=data
+										print(self.AAAed['booking'][str(data[0]).zfill(6)])
+	
+									self.RefreshBooking(mode='full')
+							except:
+								pass
+							print("Mysql executed")
+				except:
+					pass
+	
+				# Update the Totalizer for current session and related Totals
+				self.TotalSoldFullPrice+=self.TotalTransactionFullPrice
+				self.TotalSoldReducedPrice+=self.TotalTransactionReducedPrice
+				self.TotalFreePrice+=self.TotalTransactionFreePrice
+	
+				self.AAAed['Totals']['session_price']=Counter({str(FULL_PRICE):self.TotalSoldFullPrice,
+																str(REDUCED_PRICE):self.TotalSoldReducedPrice,
+																str(FREE_PRICE):self.TotalFreePrice})
+				self.AAAed['Totals']['session_revenue']+=self.TotalPrice
+	
+				self.AAAed['Totals']['totals_price'][str(FULL_PRICE)]=self.AAAed['Totals']['open_price'][str(FULL_PRICE)]+self.TotalSoldFullPrice
+				self.AAAed['Totals']['totals_price'][str(REDUCED_PRICE)]=self.AAAed['Totals']['open_price'][str(REDUCED_PRICE)]+self.TotalSoldReducedPrice
+				self.AAAed['Totals']['totals_price'][str(FREE_PRICE)]=self.AAAed['Totals']['open_price'][str(FREE_PRICE)]+self.TotalFreePrice
+	
+				self.AAAed['Totals']['totals_revenue']=self.AAAed['Totals']['open_revenue']+self.AAAed['Totals']['session_revenue']
+	
+				self.TotalSellsOperations+=1
+	
+				
+	
+				self.RefreshSeats(mode='full', idx=None)
+				self.SelectionBuffer=[]
+				self.UpdateSelectionBufferText()
+				self.RefreshTotalizers(mode=SESSION)
+	
+				## Finally exit from TopLevel and Destroy it
+				ActSelTLExit()
+			else:
+				print("nessun posto vendibile")
+				message= "Stai tentando di effettuare una vendita da una prenotazione ma nessun posto è selezionato. Rivedi la selezione dei posti."
+				messagebox.showerror("Indicazioni per la prenotazione insufficienti", message)
+				
+	
 		def ActSelTLSell():
 			from builtins import str
 			users_tmp= self.AAAed['event']['booking_user'].split(',')
@@ -1066,7 +1077,7 @@ class Window(Frame):
 
 			gridrow+=1
 		
-
+		print("Situazione posti da vendere caricamento finestra: {}".format(self.ASPSeatEnabledBool))
 		
 		gridrow+=1
 		self.ASTotalAmountTitle=Label(self.ActSelTL,font=LARGE_FONT,text="Totale prezzo ingressi")
