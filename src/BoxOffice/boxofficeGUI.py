@@ -43,6 +43,7 @@ import sys
 HUGE_FONT = ("DejaVuSansMono", 12)
 LARGE_FONT = ("DejaVuSansMono", 10)
 NORM_FONT = ("DejaVuSansMono", 8)
+MEDIUM_FONT = ("DejaVuSansMono", 7)
 SMALL_FONT = ("DejaVuSansMono", 6)
 # HUGE_FONT = ("Verdana", 16)
 # LARGE_FONT = ("Verdana", 12)
@@ -1063,7 +1064,7 @@ class Window(Frame):
 				default_price=self.booking_prices[idx]
 
 			self.ASPriceLstb[idx].grid(row=gridrow,column=2,columnspan=1,padx=(5,5),pady=(5,5))
-			self.ASPriceLstb[idx].config(height=3,width=8,font=SMALL_FONT,exportselection=False)
+			self.ASPriceLstb[idx].config(height=3,width=8,font=MEDIUM_FONT,exportselection=False)
 			self.ASPriceLstb[idx].select_set(default_price)
 			self.ASPriceLstb[idx].bind('<<ListboxSelect>>', choose)
 
@@ -1171,6 +1172,10 @@ class Window(Frame):
 			gridrow+=1
 			self.ASPhoneLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Telefono")
 			self.ASPhoneLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+			
+			gridrow+=1
+			self.ASNoteLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Note")
+			self.ASNoteLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 
 			gridrow=1
 
@@ -1190,6 +1195,10 @@ class Window(Frame):
 			gridrow+=1
 			self.ASPhoneEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Telefono")
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+			
+			gridrow+=1
+			self.ASNoteEnt=Entry(self.ActSelTL,font=NORM_FONT,width=60,text="Note")
+			self.ASNoteEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 		elif mode==SELLABOOK:
 			try:
@@ -1216,6 +1225,11 @@ class Window(Frame):
 			gridrow+=1
 			self.ASPhoneLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Telefono")
 			self.ASPhoneLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+			
+			gridrow+=1
+			self.ASNoteLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Note")
+			self.ASNoteLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+
 
 			gridrow=1
 
@@ -1247,7 +1261,11 @@ class Window(Frame):
 			self.ASEmailEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Email")
 			self.ASEmailEnt.config(state=NORMAL)
 			self.ASEmailEnt.delete(0, END)
-			self.ASEmailEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][5])
+			if self.AAAed['booking'][self.SellingBookingCode][5] is not None:
+				email_txt =self.AAAed['booking'][self.SellingBookingCode][5]
+			else:
+				email_txt = 'n.d.'
+			self.ASEmailEnt.insert(END, email_txt)
 			self.ASEmailEnt.config(state=DISABLED)
 			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
@@ -1259,9 +1277,29 @@ class Window(Frame):
 			self.ASPhoneEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Telefono")
 			self.ASPhoneEnt.config(state=NORMAL)
 			self.ASPhoneEnt.delete(0, END)
-			self.ASPhoneEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][8])
+			if self.AAAed['booking'][self.SellingBookingCode][8] is not None:
+				phone_txt = self.AAAed['booking'][self.SellingBookingCode][8]
+			else:
+				phone_txt = 'n.d.'
+			self.ASPhoneEnt.insert(END, phone_txt)
 			self.ASPhoneEnt.config(state=DISABLED)
 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+			
+			gridrow+=1
+			try:
+				self.ASNoteEnt.destroy()
+			except:
+				pass
+			self.ASNoteEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Note")
+			self.ASNoteEnt.config(state=NORMAL)
+			self.ASNoteEnt.delete(0, END)
+			if self.AAAed['booking'][self.SellingBookingCode][10] is not None:
+				note_txt = self.AAAed['booking'][self.SellingBookingCode][10]
+			else:
+				note_txt = 'n.d.'
+			self.ASNoteEnt.insert(END, note_txt)
+			self.ASNoteEnt.config(state=DISABLED)
+			self.ASNoteEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
 
 		ActSelUpdateTotalSell()
 
@@ -1599,8 +1637,10 @@ class Window(Frame):
 			self.LblBookingPhoneTitle.grid(row=3,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			self.LblBookingDateTitle= Label(self.FrameBooking,height = 1,width=12,font=SMALL_FONT,text="Data")
 			self.LblBookingDateTitle.grid(row=3,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-			self.LblBookingSeatsTitle= Label(self.FrameBooking,height = 1,width=20,font=SMALL_FONT,text="Posti")
+			self.LblBookingSeatsTitle= Label(self.FrameBooking,height = 1,width=25,font=SMALL_FONT,text="Posti")
 			self.LblBookingSeatsTitle.grid(row=3,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+			self.LblBookingNoteTitle= Label(self.FrameBooking,height = 1,width=25,font=SMALL_FONT,text="Note")
+			self.LblBookingNoteTitle.grid(row=3,column=7,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 
 			self.BtnBookingCode=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingSurname=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
@@ -1608,9 +1648,11 @@ class Window(Frame):
 			self.LblBookingPhone=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingDate=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingSeats=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
+			self.LblBookingNote=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.StringsBookingSold=['' for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			idx=0
 			for key,booking in sorted(self.AAAed['booking'].items()):
+
 				if not key== 'quantity':
 					self.StringsBookingSold[idx]=booking[9]
 					sold_check_list,self.StringsBookingSold[idx],Update = self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=CHECK, SeatPosition=None, SeatsString=booking[2])
@@ -1620,28 +1662,41 @@ class Window(Frame):
 					if '0' in sold_check_list:
 						sold_check=False
 				if not key== 'quantity' and not sold_check:
-					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=NORMAL,bg='green2',fg='blue4',
+					
+					if booking[10] is not None:
+						max_chars = max(len(booking[2]),len(booking[10]))
+					else:
+						max_chars=len(booking[2])
+					row_space= int(max_chars/30+0.5)+1
+					
+					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = row_space,width=8,state=NORMAL,bg='green2',fg='blue4',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
-					self.BtnBookingCode[idx].grid(row=4+3*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = 1,width=15,
+					self.BtnBookingCode[idx].grid(row=4+5*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[4])
-					self.LblBookingSurname[idx].grid(row=4+3*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingName[idx]= Label(self.FrameBooking,height = 1,width=15,
+					self.LblBookingSurname[idx].grid(row=4+5*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingName[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[3])
-					self.LblBookingName[idx].grid(row=4+3*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingPhone[idx]= Label(self.FrameBooking,height = 1,width=15,
+					self.LblBookingName[idx].grid(row=4+5*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingPhone[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[8])
-					self.LblBookingPhone[idx].grid(row=4+3*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingDate[idx]= Label(self.FrameBooking,height = 1,width=12,
+					self.LblBookingPhone[idx].grid(row=4+5*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingDate[idx]= Label(self.FrameBooking,height = row_space,width=12,
 												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
-					self.LblBookingDate[idx].grid(row=4+3*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = 3,width=20,
-												font=SMALL_FONT,text=booking[2],wraplength=60,anchor=W,)
-					self.LblBookingSeats[idx].grid(row=4+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingDate[idx].grid(row=4+5*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = row_space,width=25,
+												font=SMALL_FONT,text=booking[2],wraplength=135,anchor=W,)
+					self.LblBookingSeats[idx].grid(row=4+5*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					
+					self.LblBookingNote[idx]= Label(self.FrameBooking,height = row_space,width=25,
+												font=SMALL_FONT,text=booking[10],wraplength=135,anchor=W,)
+					self.LblBookingNote[idx].grid(row=4+5*idx,column=7,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 
 					idx+=1
 			idx=0
 			for key,booking in sorted(self.AAAed['booking'].items()):
+
+				
 				if not key== 'quantity':
 					self.StringsBookingSold[idx]=booking[9]
 					sold_check_list,self.StringsBookingSold[idx],Update = self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=CHECK, SeatPosition=None, SeatsString=booking[2])
@@ -1649,24 +1704,35 @@ class Window(Frame):
 					if '0' in sold_check_list:
 						sold_check=False
 				if not key== 'quantity' and sold_check:
-					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = 1,width=8,state=DISABLED,bg='IndianRed4',fg='snow2',
+					
+					if booking[10] is not None:
+						max_chars = max(len(booking[2]),len(booking[10]))
+					else:
+						max_chars=len(booking[2])
+					row_space= int(max_chars/30+0.5)+1
+
+					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = row_space,width=8,state=DISABLED,bg='IndianRed4',fg='snow2',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
-					self.BtnBookingCode[idx].grid(row=3+3*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = 1,width=15,
+					self.BtnBookingCode[idx].grid(row=3+5*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[4])
-					self.LblBookingSurname[idx].grid(row=3+3*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingName[idx]= Label(self.FrameBooking,height = 1,width=15,
+					self.LblBookingSurname[idx].grid(row=3+5*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingName[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[3])
-					self.LblBookingName[idx].grid(row=3+3*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingPhone[idx]= Label(self.FrameBooking,height = 1,width=15,
+					self.LblBookingName[idx].grid(row=3+5*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingPhone[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[8])
-					self.LblBookingPhone[idx].grid(row=3+3*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingDate[idx]= Label(self.FrameBooking,height = 1,width=12,
+					self.LblBookingPhone[idx].grid(row=3+5*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingDate[idx]= Label(self.FrameBooking,height = row_space,width=12,
 												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
-					self.LblBookingDate[idx].grid(row=3+3*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = 3,width=20,wraplength=60,anchor=W,
+					self.LblBookingDate[idx].grid(row=3+5*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = row_space,width=20,wraplength=135,anchor=W,
 												font=SMALL_FONT,text=booking[2])
-					self.LblBookingSeats[idx].grid(row=3+3*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSeats[idx].grid(row=3+5*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					
+					self.LblBookingNote[idx]= Label(self.FrameBooking,height = row_space,width=25,
+												font=SMALL_FONT,text=booking[10],wraplength=135,anchor=W,)
+					self.LblBookingNote[idx].grid(row=4+5*idx,column=7,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 
 					idx+=1
 		else:
