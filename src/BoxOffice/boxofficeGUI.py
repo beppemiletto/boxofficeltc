@@ -14,7 +14,7 @@ import gi
 # from gi.repository import Gtk, Gdk
 
 from tkinter import Tk,Frame,Label,Listbox,Entry, Toplevel, Button,Text,Menu
-from tkinter import BOTH,CENTER,NW,S,W,N,E,END
+from tkinter import BOTH,CENTER,NW,S,W,N,E,END,LEFT
 from tkinter import DISABLED,NORMAL,RAISED,FLAT,RIDGE,SUNKEN,BROWSE,X,Y  # @UnusedImport
 from tkinter import messagebox
 from tkinter.ttk import Treeview
@@ -341,11 +341,11 @@ class Window(Frame):
 
 		# Finestra con le prenotazioni attive
 		self.BookingTitle= Label(self.FrameBooking,height = 1,width=30,font=LARGE_FONT,text="Prenotazioni evento")
-		self.BookingTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=3,sticky=N)
+		self.BookingTitle.grid(row=1,column=1,padx=(0,0),pady=(0,0),columnspan=4,sticky=N)
 		self.BookingBarCodebtn=Button(self.FrameBooking,font=NORM_FONT,text='Lettura Barcode',state=NORMAL,
 					width=15,activebackground='white',activeforeground='red', bg='lightgrey',relief=RAISED,
 					command= self.booking_code_window)
-		self.BookingBarCodebtn.grid(row=1,column=4,padx=2,pady=2,rowspan=2)
+		self.BookingBarCodebtn.grid(row=1,column=6,padx=2,pady=2,rowspan=2)
 
 		## CREATE THE FRAME FOR TOTALIZERS ###################################
 		##
@@ -901,6 +901,7 @@ class Window(Frame):
 			cstr_name = self.ASNameEnt.get()
 			cstr_email = self.ASEmailEnt.get()
 			cstr_phone = self.ASPhoneEnt.get()
+			cstr_note = self.ASNoteEnt.get()
 			event_tmp = self.AAAed['event']['id']
 
 			self.EventDataChanged=True
@@ -908,10 +909,10 @@ class Window(Frame):
 			#INSERT INTO `booking_booking`(`id`, `created_date`, `seats_booked`, `customer_name`, `customer_surname`, `customer_email`, `event_id`, `user_id_id`, `customer_phone`) VALUES ([value-1],[value-2],[value-3],[value-4],[value-5],[value-6],[value-7],[value-8],[value-9])
 			sql_cmd = """
 			INSERT INTO `booking_booking`
-			( `created_date`, `seats_booked`, `customer_name`, `customer_surname`, `customer_email`, `event_id`, `user_id_id`, `customer_phone`,`book_sold`)
-			VALUES ('{}','{}','{}','{}','{}',{},{},'{}','{}')
+			( `created_date`, `seats_booked`, `customer_name`, `customer_surname`, `customer_email`, `event_id`, `user_id_id`, `customer_phone`,`book_sold`,`customer_notes`)
+			VALUES ('{}','{}','{}','{}','{}',{},{},'{}','{}','{}')
 			;
-			""".format(created_date_tmp,seats_booked_tmp,cstr_name,cstr_surname,cstr_email,event_tmp,2,cstr_phone,book_sold)
+			""".format(created_date_tmp,seats_booked_tmp,cstr_name,cstr_surname,cstr_email,event_tmp,2,cstr_phone,book_sold,cstr_note)
 			print(sql_cmd)
 			try:
 				self.mysqlcursor.execute(sql_cmd)
@@ -1211,95 +1212,113 @@ class Window(Frame):
 			self.ASGeneralitiesTitleLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
 
 			gridrow+=2
-			self.ASSurnameLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Cognome")
-			self.ASSurnameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+			self.ASSurnameLbl=Label(self.ActSelTL,font=NORM_FONT,width=60,justify=LEFT,text="Cognome: {}".format(self.AAAed['booking'][self.SellingBookingCode][4]))
+			self.ASSurnameLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5),sticky=W)
 
 			gridrow+=1
-			self.ASNameLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Nome")
-			self.ASNameLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
+			self.ASNameLbl=Label(self.ActSelTL,font=NORM_FONT,width=60,justify=LEFT,text="Nome: {}".format(self.AAAed['booking'][self.SellingBookingCode][3]))
+			self.ASNameLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
 
 			gridrow+=1
-			self.ASEmailLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Email")
-			self.ASEmailLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
-
-			gridrow+=1
-			self.ASPhoneLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Telefono")
-			self.ASPhoneLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
 			
-			gridrow+=1
-			self.ASNoteLbl=Label(self.ActSelTL,font=NORM_FONT,width=10,text="Note")
-			self.ASNoteLbl.grid(row=gridrow,column=4,columnspan=1,padx=(15,5),pady=(5,5))
-
-
-			gridrow=1
-
-			gridrow+=2
-			self.ASSurnameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Cognome")
-			self.ASSurnameEnt.config(state=NORMAL)
-			self.ASSurnameEnt.delete(0, END)
-			self.ASSurnameEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][4])
-			self.ASSurnameEnt.config(state=DISABLED)
-			self.ASSurnameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
-
-			gridrow+=1
-			try:
-				self.ASNameEnt.destroy()
-			except:
-				pass
-			self.ASNameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Nome")
-			self.ASNameEnt.config(state=NORMAL)
-			self.ASNameEnt.delete(0, END)
-			self.ASNameEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][3])
-			self.ASNameEnt.config(state=DISABLED)
-			self.ASNameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
-
-			gridrow+=1
-			try:
-				self.ASEmailEnt.destroy()
-			except:
-				pass
-			self.ASEmailEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Email")
-			self.ASEmailEnt.config(state=NORMAL)
-			self.ASEmailEnt.delete(0, END)
 			if self.AAAed['booking'][self.SellingBookingCode][5] is not None:
 				email_txt =self.AAAed['booking'][self.SellingBookingCode][5]
 			else:
 				email_txt = 'n.d.'
-			self.ASEmailEnt.insert(END, email_txt)
-			self.ASEmailEnt.config(state=DISABLED)
-			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+			
+			self.ASEmailLbl=Label(self.ActSelTL,font=NORM_FONT,width=60,justify=LEFT,text="Email: {}".format(email_txt))
+			self.ASEmailLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
 
 			gridrow+=1
-			try:
-				self.ASPhoneEnt.destroy()
-			except:
-				pass
-			self.ASPhoneEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Telefono")
-			self.ASPhoneEnt.config(state=NORMAL)
-			self.ASPhoneEnt.delete(0, END)
+			
 			if self.AAAed['booking'][self.SellingBookingCode][8] is not None:
 				phone_txt = self.AAAed['booking'][self.SellingBookingCode][8]
 			else:
 				phone_txt = 'n.d.'
-			self.ASPhoneEnt.insert(END, phone_txt)
-			self.ASPhoneEnt.config(state=DISABLED)
-			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+
+			self.ASPhoneLbl=Label(self.ActSelTL,font=NORM_FONT,width=60,justify=LEFT,text="Telefono: {}".format(phone_txt))
+			self.ASPhoneLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
 			
 			gridrow+=1
-			try:
-				self.ASNoteEnt.destroy()
-			except:
-				pass
-			self.ASNoteEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Note")
-			self.ASNoteEnt.config(state=NORMAL)
-			self.ASNoteEnt.delete(0, END)
+			
 			if self.AAAed['booking'][self.SellingBookingCode][10] is not None:
 				note_txt = self.AAAed['booking'][self.SellingBookingCode][10]
 			else:
-				note_txt = 'n.d.'
-			self.ASNoteEnt.insert(END, note_txt)
-			self.ASNoteEnt.config(state=DISABLED)
-			self.ASNoteEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+				note_txt = 'n.d.'			
+			self.ASNoteLbl=Label(self.ActSelTL,font=NORM_FONT,width=60, wraplength=400,height=6,justify=LEFT,text="Note: {}".format(note_txt))
+			self.ASNoteLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
+
+
+			#--------------------------------------------------------- gridrow=1
+#------------------------------------------------------------------------------ 
+			#-------------------------------------------------------- gridrow+=2
+# # 			self.ASSurnameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Cognome")
+#----------------------------------- # 			self.ASSurnameEnt.config(state=NORMAL)
+#----------------------------------------- # 			self.ASSurnameEnt.delete(0, END)
+# # 			self.ASSurnameEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][4])
+#--------------------------------- # 			self.ASSurnameEnt.config(state=DISABLED)
+# # 			self.ASSurnameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+#------------------------------------------------------------------------------ 
+			#-------------------------------------------------------- gridrow+=1
+#--------------------------------------------------------------------- # 			try:
+#------------------------------------------------ # 				self.ASNameEnt.destroy()
+#------------------------------------------------------------------ # 			except:
+#-------------------------------------------------------------------- # 				pass
+#-- # 			self.ASNameEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Nome")
+#-------------------------------------- # 			self.ASNameEnt.config(state=NORMAL)
+#-------------------------------------------- # 			self.ASNameEnt.delete(0, END)
+# # 			self.ASNameEnt.insert(END, self.AAAed['booking'][self.SellingBookingCode][3])
+#------------------------------------ # 			self.ASNameEnt.config(state=DISABLED)
+# # 			self.ASNameEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+#------------------------------------------------------------------------------ 
+			#-------------------------------------------------------- gridrow+=1
+#--------------------------------------------------------------------- # 			try:
+#----------------------------------------------- # 				self.ASEmailEnt.destroy()
+#------------------------------------------------------------------ # 			except:
+#-------------------------------------------------------------------- # 				pass
+# # 			self.ASEmailEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Email")
+#------------------------------------- # 			self.ASEmailEnt.config(state=NORMAL)
+#------------------------------------------- # 			self.ASEmailEnt.delete(0, END)
+#-------- # 			if self.AAAed['booking'][self.SellingBookingCode][5] is not None:
+#------------ # 				email_txt =self.AAAed['booking'][self.SellingBookingCode][5]
+#-------------------------------------------------------------------- # 			else:
+#------------------------------------------------------ # 				email_txt = 'n.d.'
+#----------------------------------- # 			self.ASEmailEnt.insert(END, email_txt)
+#----------------------------------- # 			self.ASEmailEnt.config(state=DISABLED)
+# # 			self.ASEmailEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+#------------------------------------------------------------------------------ 
+			#-------------------------------------------------------- gridrow+=1
+#--------------------------------------------------------------------- # 			try:
+#----------------------------------------------- # 				self.ASPhoneEnt.destroy()
+#------------------------------------------------------------------ # 			except:
+#-------------------------------------------------------------------- # 				pass
+# # 			self.ASPhoneEnt=Entry(self.ActSelTL,font=NORM_FONT,width=30,text="Telefono")
+#------------------------------------- # 			self.ASPhoneEnt.config(state=NORMAL)
+#------------------------------------------- # 			self.ASPhoneEnt.delete(0, END)
+#-------- # 			if self.AAAed['booking'][self.SellingBookingCode][8] is not None:
+#----------- # 				phone_txt = self.AAAed['booking'][self.SellingBookingCode][8]
+#-------------------------------------------------------------------- # 			else:
+#------------------------------------------------------ # 				phone_txt = 'n.d.'
+#----------------------------------- # 			self.ASPhoneEnt.insert(END, phone_txt)
+#----------------------------------- # 			self.ASPhoneEnt.config(state=DISABLED)
+# # 			self.ASPhoneEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+#------------------------------------------------------------------------------ 
+			#-------------------------------------------------------- gridrow+=1
+#--------------------------------------------------------------------- # 			try:
+#------------------------------------------------ # 				self.ASNoteEnt.destroy()
+#------------------------------------------------------------------ # 			except:
+#-------------------------------------------------------------------- # 				pass
+#-- # 			self.ASNoteEnt=Entry(self.ActSelTL,font=NORM_FONT,width=50,text="Note")
+#-------------------------------------- # 			self.ASNoteEnt.config(state=NORMAL)
+#-------------------------------------------- # 			self.ASNoteEnt.delete(0, END)
+#------- # 			if self.AAAed['booking'][self.SellingBookingCode][10] is not None:
+#----------- # 				note_txt = self.AAAed['booking'][self.SellingBookingCode][10]
+#-------------------------------------------------------------------- # 			else:
+#------------------------------------------------------- # 				note_txt = 'n.d.'
+#------------------------------------- # 			self.ASNoteEnt.insert(END, note_txt)
+#------------------------------------ # 			self.ASNoteEnt.config(state=DISABLED)
+# # 			self.ASNoteEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
+		del note_txt,email_txt,phone_txt
 
 		ActSelUpdateTotalSell()
 
@@ -1726,7 +1745,7 @@ class Window(Frame):
 					self.LblBookingDate[idx]= Label(self.FrameBooking,height = row_space,width=12,
 												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
 					self.LblBookingDate[idx].grid(row=3+5*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = row_space,width=20,wraplength=135,anchor=W,
+					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = row_space,width=25,wraplength=135,anchor=W,
 												font=SMALL_FONT,text=booking[2])
 					self.LblBookingSeats[idx].grid(row=3+5*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					
@@ -1779,13 +1798,11 @@ class Window(Frame):
 		self.booking_prices=[]
 		if len(self.SelectionBuffer):
 			title = "Selezione posti non vuota"
-			question ="""Hai scelto di aprire una prenotazione
-			ma hai dei posti selezionati in precedenza.
-			Vuoi aggiungere i posti della prenotazione
-			 a quelli selezionati prima?"""
+			question ="""Hai scelto di aprire una prenotazione ma hai dei posti selezionati in precedenza.
+			Vuoi aggiungere i posti della prenotazione a quelli selezionati prima?"""
 			answer = messagebox.askquestion(title,question )
 			if answer == 'no':
-				self.SelectionBuffer=[]
+				self.resetSelection()
 			else:
 				for seat in self.SelectionBuffer:
 					self.booking_prices.append(FULL_PRICE)
