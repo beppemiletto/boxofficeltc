@@ -36,6 +36,7 @@ import sys
 
 
 
+
 # from tunneling_mysql import MySQL_Ssh_Tunnel  # @UnresolvedImport
 ## GLOBAL SETTINGS AND VARIABLE
 
@@ -962,7 +963,7 @@ class Window(Frame):
 			except (pickle.PickleError) as e:
 				messagebox.showerror("Errore nel salvataggio della sessione", "Il programma ha trovato questo errore:/n {}/n Non è consentito il proseguimento./nIl programma verrà terminato. Premi OK per terminare".format(e))
 				exit(1)
-
+			self.resetSelection()
 			self.ActSelTL.destroy()
 
 		## DECLARE , INSTANTIATE AND POPULATE THE TOP LEVEL FRAME FOR SELL, BOOK
@@ -989,6 +990,7 @@ class Window(Frame):
 		# ## LIST OF SEAT SELECTED , PRICES AND TYPES
 		#=======================================================================
 		self.ActSelTL=Toplevel(  background='lavender', borderwidth=1, container = 0, height = 800,takefocus=True,  width=600)
+		self.ActSelTL.protocol('WM_DELETE_WINDOW', lambda window=self: ActSelTLExit)
 		self.prices=[Decimal('0.00'),self.AAAed['event']['price_reduced'],self.AAAed['event']['price_full']]
 		# clean up the data in previous widget instantiates
 		for widget in self.ActSelTL.winfo_children():
@@ -1034,7 +1036,7 @@ class Window(Frame):
 
 		for idx in range(len(self.SelectionBuffer)):
 			if mode==SELLABOOK:
-				buttonstatus = int(self.ListSoldStatus[idx])
+				buttonstatus  = int(self.ListSoldStatus[idx])
 				
 				if not buttonstatus:
 					self.ASSeatBtn[idx]=Button(self.ActSelTL,font=NORM_FONT,text=self.seat_name[self.SelectionBuffer[idx]],state=NORMAL,
@@ -1677,6 +1679,7 @@ class Window(Frame):
 					sold_check_list,self.StringsBookingSold[idx],Update = self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=CHECK, SeatPosition=None, SeatsString=booking[2])
 					if Update:
 						self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=UPDATE, book_code=key)
+						self.AAAed['booking'][key][10]=self.StringsBookingSold[idx]
 					sold_check = True
 					if '0' in sold_check_list:
 						sold_check=False
