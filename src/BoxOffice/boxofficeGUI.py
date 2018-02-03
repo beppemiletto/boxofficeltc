@@ -1679,7 +1679,7 @@ class Window(Frame):
 					sold_check_list,self.StringsBookingSold[idx],Update = self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=CHECK, SeatPosition=None, SeatsString=booking[2])
 					if Update:
 						self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=UPDATE, book_code=key)
-						self.AAAed['booking'][key][10]=self.StringsBookingSold[idx]
+						#self.AAAed['booking'][key][10]=self.StringsBookingSold[idx]
 					sold_check = True
 					if '0' in sold_check_list:
 						sold_check=False
