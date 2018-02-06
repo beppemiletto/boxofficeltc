@@ -8,7 +8,7 @@ for tunneling connection to mysql server if used from remote location
 @author: beppe
 '''
 # Simple enough, just import everything from tkinter.
-import gi
+import gi  # @UnusedImport
 ##gi.require_version('Gtk', '3.0')
 ##gi.require_version('Atspi', '2.0')
 # from gi.repository import Gtk, Gdk
@@ -596,6 +596,11 @@ class Window(Frame):
 				pr_str_totals += "\n"
 				pr_str_totals += "**** TOTALE EURO___{}\n".format(this_ticket_total)
 				
+
+				transaction_data={}
+				transaction_data['seats_sold']="{},{},{}".format(this_ticket_counters[FREE_PRICE],this_ticket_counters[REDUCED_PRICE],this_ticket_counters[FULL_PRICE])
+				transaction_data['amount']=this_ticket_total
+
 	
 				self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
 				self.AAAed['event']['booking_user']=','.join(users_tmp)
@@ -683,7 +688,7 @@ class Window(Frame):
 	
 				self.TotalSellsOperations+=1
 	
-				
+				self.RecordTransaction(transaction_data)
 	
 				self.RefreshSeats(mode='full', idx=None)
 				self.SelectionBuffer=[]
@@ -695,7 +700,7 @@ class Window(Frame):
 			else:
 				print("nessun posto vendibile")
 				message= "Stai tentando di effettuare una vendita da una prenotazione ma nessun posto è selezionato. Rivedi la selezione dei posti."
-				messagebox.showerror("Indicazioni per la prenotazione insufficienti", message)
+				messagebox.showerror("Vendita vuota!!!", message)
 				
 	
 		def ActSelTLSell():
@@ -737,6 +742,9 @@ class Window(Frame):
 			pr_str_totals += "\n"
 			pr_str_totals += "**** TOTALE EURO___{}\n".format(this_ticket_total)
 			
+			transaction_data={}
+			transaction_data['seats_sold']="{},{},{}".format(this_ticket_counters[FREE_PRICE],this_ticket_counters[REDUCED_PRICE],this_ticket_counters[FULL_PRICE])
+			transaction_data['amount']=this_ticket_total
 
 			self.AAAed['event']['booking_status']=','.join(self.AAAed['seat_status'])
 			self.AAAed['event']['booking_user']=','.join(users_tmp)
@@ -772,39 +780,38 @@ class Window(Frame):
 			except:
 				self.mysql.rollback()
 
-			try:
-				if self.SellingBookingCode:
-					sql_cmd = """UPDATE `booking_booking`
-					SET `book_sold`= '1'
-					WHERE `booking_booking`.`id` = {};""".format(self.AAAed['booking'][self.SellingBookingCode][0])
-
-					print(sql_cmd)
-					self.EventDataChanged=True
-					try:
-						self.mysqlcursor.execute(sql_cmd)
-						self.mysql.commit()
-						self.EventDataChanged=False
-					except:
-						self.mysql.rollback()
-					finally:
-						try:
-							sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.AAAed['event']['id']))
-							result=self.mysqlcursor.execute(sql_cmd)
-							if result < 1:
-								self.AAAed['booking']['quantity']=result
-							else:
-								self.AAAed['booking']['quantity']=result
-								for idx in range(result):  # @UnusedVariable
-									data=self.mysqlcursor.fetchone()
-									self.AAAed['booking'][str(data[0]).zfill(6)]=data
-									print(self.AAAed['booking'][str(data[0]).zfill(6)])
-
-								self.RefreshBooking(mode='full')
-						except:
-							pass
-						print("Mysql executed")
-			except:
-				pass
+## 	BUG FIXED 04/02/2018 : operated Update on booling_booking when a normal sell happened
+#			try: 
+# 				if self.SellingBookingCode:
+# 					sql_cmd = """UPDATE `booking_booking`
+# 					SET `book_sold`= '1'
+# 					WHERE `booking_booking`.`id` = {};""".format(self.AAAed['booking'][self.SellingBookingCode][0])
+# 
+# 					print(sql_cmd)
+# 					self.EventDataChanged=True
+# 					try:
+# 						self.mysqlcursor.execute(sql_cmd)
+# 						self.mysql.commit()
+# 						self.EventDataChanged=False
+# 					except:
+# 						self.mysql.rollback()
+# 					finally:
+# 						try:
+# 							sql_cmd="SELECT * FROM booking_booking where booking_booking.event_id = {};".format(int(self.AAAed['event']['id']))
+# 							result=self.mysqlcursor.execute(sql_cmd)
+# 							if result < 1:
+# 								self.AAAed['booking']['quantity']=result
+# 							else:
+# 								self.AAAed['booking']['quantity']=result
+# 								for idx in range(result):  # @UnusedVariable
+# 									data=self.mysqlcursor.fetchone()
+# 									self.AAAed['booking'][str(data[0]).zfill(6)]=data
+# 									print(self.AAAed['booking'][str(data[0]).zfill(6)])
+# 
+# 								self.RefreshBooking(mode='full')
+# 						except:
+# 							pass
+# 						print("Mysql executed")
 
 			# Update the Totalizer for current session and related Totals
 			self.TotalSoldFullPrice+=self.TotalTransactionFullPrice
@@ -824,7 +831,7 @@ class Window(Frame):
 
 			self.TotalSellsOperations+=1
 
-			
+			self.RecordTransaction(transaction_data)
 
 			self.RefreshSeats(mode='full', idx=None)
 			self.SelectionBuffer=[]
@@ -893,7 +900,7 @@ class Window(Frame):
 			seats_booked_tmp = ''
 			book_sold= ''
 			for idx,seat in enumerate(self.SelectionBuffer):
-				seats_booked_tmp+='{}${},'.format(self.seat_name[seat],self.AAAed['seat_prices'][idx])
+				seats_booked_tmp+='{}${},'.format(self.seat_name[seat],self.AAAed['seat_prices'][seat])
 				book_sold +='0,'
 			book_sold= book_sold.rstrip(',')
 			seats_booked_tmp=seats_booked_tmp.rstrip(',')
@@ -1249,6 +1256,8 @@ class Window(Frame):
 				note_txt = 'n.d.'			
 			self.ASNoteLbl=Label(self.ActSelTL,font=NORM_FONT,width=60, wraplength=400,height=6,justify=LEFT,text="Note: {}".format(note_txt))
 			self.ASNoteLbl.grid(row=gridrow,column=4,columnspan=2,padx=(15,5),pady=(5,5))
+			
+			del note_txt,email_txt,phone_txt
 
 
 			#--------------------------------------------------------- gridrow=1
@@ -1320,7 +1329,7 @@ class Window(Frame):
 #------------------------------------- # 			self.ASNoteEnt.insert(END, note_txt)
 #------------------------------------ # 			self.ASNoteEnt.config(state=DISABLED)
 # # 			self.ASNoteEnt.grid(row=gridrow,column=5,columnspan=1,padx=(5,5),pady=(5,5))
-		del note_txt,email_txt,phone_txt
+		
 
 		ActSelUpdateTotalSell()
 
@@ -1336,7 +1345,7 @@ class Window(Frame):
 				else:
 					messagebox.showwarning('Posto selezionato in precedenza', 'Hai riselezionato un posto. Se desideri deselezionarlo usa il pulsante Reset Selezione.')
 			else:
-				messagebox.showwarning('Massimo dei posti selezionati', 'Non puoi effettuare selezioni maggiori di 15 posti.')
+				messagebox.showwarning('Massimo dei posti selezionati', 'Non puoi effettuare selezioni maggiori di 16 posti.')
 		elif mode== DESELECT:
 			self.RefreshSeats('one', idx)
 		elif mode==DISABLE:
@@ -1656,30 +1665,32 @@ class Window(Frame):
 			self.LblBookingNameTitle.grid(row=3,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 			self.LblBookingPhoneTitle= Label(self.FrameBooking,height = 1,width=15,font=SMALL_FONT,text="Telefono")
 			self.LblBookingPhoneTitle.grid(row=3,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-			self.LblBookingDateTitle= Label(self.FrameBooking,height = 1,width=12,font=SMALL_FONT,text="Data")
-			self.LblBookingDateTitle.grid(row=3,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-			self.LblBookingSeatsTitle= Label(self.FrameBooking,height = 1,width=25,font=SMALL_FONT,text="Posti")
-			self.LblBookingSeatsTitle.grid(row=3,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-			self.LblBookingNoteTitle= Label(self.FrameBooking,height = 1,width=25,font=SMALL_FONT,text="Note")
-			self.LblBookingNoteTitle.grid(row=3,column=7,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+# 			self.LblBookingDateTitle= Label(self.FrameBooking,height = 1,width=12,font=SMALL_FONT,text="Data")
+# 			self.LblBookingDateTitle.grid(row=3,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+			self.LblBookingSeatsTitle= Label(self.FrameBooking,height = 1,width=42,font=SMALL_FONT,text="Posti")
+			self.LblBookingSeatsTitle.grid(row=3,column=5,padx=(1,1),pady=(1,1),columnspan=1,sticky=W)
+			self.LblBookingNoteTitle= Label(self.FrameBooking,height = 1,width=42,font=SMALL_FONT,text="Note")
+			self.LblBookingNoteTitle.grid(row=3,column=6,padx=(1,1),pady=(1,1),columnspan=1,sticky=W)
 
 			self.BtnBookingCode=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingSurname=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingName=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingPhone=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
-			self.LblBookingDate=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
+# 			self.LblBookingDate=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingSeats=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			self.LblBookingNote=[0 for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
-			self.StringsBookingSold=['' for x in range(self.AAAed['booking']['quantity'])]  # @UnusedVariable
 			idx=0
+			start_row=4
+			row_spacer=0
 			for key,booking in sorted(self.AAAed['booking'].items()):
 
 				if not key== 'quantity':
-					self.StringsBookingSold[idx]=booking[9]
-					sold_check_list,self.StringsBookingSold[idx],Update = self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=CHECK, SeatPosition=None, SeatsString=booking[2])
+					StringsBookingSold=booking[9]
+					sold_check_list,StringsBookingSold,Update = self.BookingSoldStatusManager(SoldStatusString=StringsBookingSold, mode=CHECK, SeatPosition=None, SeatsString=booking[2])
 					if Update:
-						self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=UPDATE, book_code=key)
-						#self.AAAed['booking'][key][10]=self.StringsBookingSold[idx]
+						self.BookingSoldStatusManager(SoldStatusString=StringsBookingSold, mode=UPDATE, book_code=key)
+						#BUG FIX tuple immutable violation 						self.AAAed['booking'][key][9]=StringsBookingSold
+						self.Read_a_Booking(key)
 					sold_check = True
 					if '0' in sold_check_list:
 						sold_check=False
@@ -1689,39 +1700,40 @@ class Window(Frame):
 						max_chars = max(len(booking[2]),len(booking[10]))
 					else:
 						max_chars=len(booking[2])
-					row_space= int(max_chars/30+0.5)+1
+					row_space= int(max_chars/30+0.5)+row_spacer
 					
 					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = row_space,width=8,state=NORMAL,bg='green2',fg='blue4',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
-					self.BtnBookingCode[idx].grid(row=4+5*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.BtnBookingCode[idx].grid(row=start_row,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[4])
-					self.LblBookingSurname[idx].grid(row=4+5*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSurname[idx].grid(row=start_row,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingName[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[3])
-					self.LblBookingName[idx].grid(row=4+5*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingName[idx].grid(row=start_row,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingPhone[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[8])
-					self.LblBookingPhone[idx].grid(row=4+5*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingDate[idx]= Label(self.FrameBooking,height = row_space,width=12,
-												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
-					self.LblBookingDate[idx].grid(row=4+5*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = row_space,width=25,
-												font=SMALL_FONT,text=booking[2],wraplength=135,anchor=W,)
-					self.LblBookingSeats[idx].grid(row=4+5*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingPhone[idx].grid(row=start_row,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+# 					self.LblBookingDate[idx]= Label(self.FrameBooking,height = row_space,width=12,
+# 												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
+# 					self.LblBookingDate[idx].grid(row=start_row,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = row_space,width=42,
+												font=SMALL_FONT,text=booking[2],wraplength=140,anchor=W,)
+					self.LblBookingSeats[idx].grid(row=start_row,column=5,padx=(1,1),pady=(1,1),columnspan=1,sticky=W)
 					
-					self.LblBookingNote[idx]= Label(self.FrameBooking,height = row_space,width=25,
-												font=SMALL_FONT,text=booking[10],wraplength=135,anchor=W,)
-					self.LblBookingNote[idx].grid(row=4+5*idx,column=7,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-
+					self.LblBookingNote[idx]= Label(self.FrameBooking,height = row_space,width=42,
+												font=SMALL_FONT,text=booking[10],wraplength=140,anchor=W,)
+					self.LblBookingNote[idx].grid(row=start_row,column=6,padx=(1,1),pady=(1,1),columnspan=1,sticky=W)
+					
+					start_row+=row_space+1
 					idx+=1
-			idx=0
+			
 			for key,booking in sorted(self.AAAed['booking'].items()):
 
 				
 				if not key== 'quantity':
-					self.StringsBookingSold[idx]=booking[9]
-					sold_check_list,self.StringsBookingSold[idx],Update = self.BookingSoldStatusManager(SoldStatusString=self.StringsBookingSold[idx], mode=CHECK, SeatPosition=None, SeatsString=booking[2])
+					StringsBookingSold=booking[9]
+					sold_check_list,StringsBookingSold,Update = self.BookingSoldStatusManager(SoldStatusString=StringsBookingSold, mode=CHECK, SeatPosition=None, SeatsString=booking[2])
 					sold_check = True
 					if '0' in sold_check_list:
 						sold_check=False
@@ -1731,31 +1743,32 @@ class Window(Frame):
 						max_chars = max(len(booking[2]),len(booking[10]))
 					else:
 						max_chars=len(booking[2])
-					row_space= int(max_chars/30+0.5)+1
+					row_space= int(max_chars/30+0.5)+row_spacer
 
 					self.BtnBookingCode[idx]= Button(self.FrameBooking,height = row_space,width=8,state=DISABLED,bg='IndianRed4',fg='snow2',
 												font=SMALL_FONT,text=key,command = lambda code=key : self.GetBooking(code,mode=SELECT))
-					self.BtnBookingCode[idx].grid(row=3+5*idx,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.BtnBookingCode[idx].grid(row=start_row,column=1,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingSurname[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[4])
-					self.LblBookingSurname[idx].grid(row=3+5*idx,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSurname[idx].grid(row=start_row,column=2,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingName[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[3])
-					self.LblBookingName[idx].grid(row=3+5*idx,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingName[idx].grid(row=start_row,column=3,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
 					self.LblBookingPhone[idx]= Label(self.FrameBooking,height = row_space,width=15,
 												font=SMALL_FONT,text=booking[8])
-					self.LblBookingPhone[idx].grid(row=3+5*idx,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingDate[idx]= Label(self.FrameBooking,height = row_space,width=12,
-												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
-					self.LblBookingDate[idx].grid(row=3+5*idx,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = row_space,width=25,wraplength=135,anchor=W,
+					self.LblBookingPhone[idx].grid(row=start_row,column=4,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+# 					self.LblBookingDate[idx]= Label(self.FrameBooking,height = row_space,width=12,
+# 												font=SMALL_FONT,text=booking[1].strftime('%d/%m/%Y'))
+# 					self.LblBookingDate[idx].grid(row=start_row,column=5,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSeats[idx]= Label(self.FrameBooking,height = row_space,width=42,wraplength=140,anchor=W,
 												font=SMALL_FONT,text=booking[2])
-					self.LblBookingSeats[idx].grid(row=3+5*idx,column=6,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
+					self.LblBookingSeats[idx].grid(row=start_row,column=5,padx=(1,1),pady=(1,1),columnspan=1,sticky=W)
 					
-					self.LblBookingNote[idx]= Label(self.FrameBooking,height = row_space,width=25,
-												font=SMALL_FONT,text=booking[10],wraplength=135,anchor=W,)
-					self.LblBookingNote[idx].grid(row=4+5*idx,column=7,padx=(0,0),pady=(0,0),columnspan=1,sticky=W)
-
+					self.LblBookingNote[idx]= Label(self.FrameBooking,height = row_space,width=42,
+												font=SMALL_FONT,text=booking[10],wraplength=140,anchor=W,)
+					self.LblBookingNote[idx].grid(row=start_row,column=6,padx=(1,1),pady=(1,1),columnspan=1,sticky=W)
+					
+					start_row+=row_space+1
 					idx+=1
 		else:
 			self.LblBookingFrameTitle= Label(self.FrameBooking,height = 3,width=25,font=NORM_FONT,text="Non ci sono \nprenotazioni attive \nper questo evento")
@@ -1839,9 +1852,12 @@ class Window(Frame):
 				SoldStatusList = SoldStatusString.split(',')
 				if len(SoldStatusList) != len(SeatList):
 					if len(SoldStatusList) < len(SeatList):
-						SoldStatusList=[]
+# 						SoldStatusList=[]
+						if len(SoldStatusList)==1:
+							char_filler=SoldStatusList[0]
 						for idx in range(len(SeatList)):
-							SoldStatusList.append('0')
+							if idx >= len(SoldStatusList):
+								SoldStatusList.append(char_filler)
 					else:
 						TmpList = SoldStatusList[:len(SeatList)]
 						SoldStatusList=TmpList
@@ -1866,12 +1882,8 @@ class Window(Frame):
 				SoldStatusString=','.join(SoldStatusList)
 			return SoldStatusList,SoldStatusString,Update
 		elif mode ==UPDATE:
-			id = int(book_code)
-			sql_cmd = """
-				UPDATE `booking_booking` SET 
-				 `book_sold` = '{}' WHERE id = {} 
-				;
-				""".format(SoldStatusString,id)
+			id_record = int(book_code)
+			sql_cmd = "UPDATE `booking_booking` SET `book_sold` = '{}' WHERE id = {} ;".format(SoldStatusString,id_record)
 			print(sql_cmd)
 			try:
 				self.mysqlcursor.execute(sql_cmd)
@@ -1880,8 +1892,32 @@ class Window(Frame):
 				self.mysql.rollback()
 						
 			
-			
+	def RecordTransaction(self,transaction_data):
+		created_date_tmp = time.strftime('%Y-%m-%d %H:%M:%S')
+		seats_sold = transaction_data['seats_sold']
+		amount=transaction_data['amount']
+		event_id = self.AAAed['event']['id']
+		sql_cmd = "INSERT INTO `booking_boxoffice_transaction` ( `created_date`, `seats_sold`, `amount`, `event_id`) VALUES ('{}','{}','{}','{}');".format(created_date_tmp,seats_sold,amount,event_id)
+		print(sql_cmd)
+		try:
+			self.mysqlcursor.execute(sql_cmd)
+			self.mysql.commit()
+		except:
+			self.mysql.rollback()
+		finally:
+			print("Mysql executed")		
+	
+	def Read_a_Booking(self,booking_code):
+		# query booking_booking - high priority data
+		# putting information on ed (event dictionary) in the inner bookings dictionary
 
+		sql_cmd="SELECT * FROM booking_booking where booking_booking.id = {};".format(int(booking_code))
+		result=self.mysqlcursor.execute(sql_cmd)
+		if result < 1:
+			pass
+		else:
+			data=self.mysqlcursor.fetchone()
+			self.AAAed['booking'][booking_code]=data
 
 	def client_exit(self):
 		try:
