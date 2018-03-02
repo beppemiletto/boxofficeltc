@@ -1356,23 +1356,29 @@ class Window(Frame):
 			print(self.BCWbooking_code.get())
 			raw_code= self.BCWbooking_code.get()
 			self.booking_code_w.destroy()
+			print('rawcode read = {}'.format(raw_code))
 			try:
 				code_season_year_id = int(raw_code[3:4])
+				print('rawcode read = {}'.format(raw_code))
+				print('code_season_year_id read = {}'.format(code_season_year_id))
 				if code_season_year_id != self.AAAed['show']['season_year_id']:
 					raise BookingCodeError({"message":"Codice stagione della prenotazione non coerente.", "season":self.AAAed['show']['season_year_id']})
 				code_show_id=int(raw_code[5:7])
+				print('code_show_id read = {} == {}'.format(code_show_id,self.AAAed['event']['show_id']))
 				if code_show_id!= self.AAAed['event']['show_id']:
 					raise BookingCodeError({"message":"Codice spettacolo della prenotazione non coerente.", "show":self.AAAed['event']['show_id']})
 			except:
 				messagebox.showerror("ERRORE DI LETTURA DEL BARCODE","Il codice a barre letto non è coerente con una prenotazione o non è per lo spettacolo in corso.")
 			try:
 				booking_id = int(raw_code[8:12])
+				print('booking_id read = {} '.format(booking_id))
 			except ValueError:
 				messagebox.showerror("ERRORE DI LETTURA DEL BARCODE","Il codice a barre letto non è coerente con una prenotazione o non è per lo spettacolo in corso.")
 			booking_id_code = str(booking_id).zfill(6)
+			print('booking_id_code read = {} == {}'.format(booking_id_code,self.AAAed['booking'][booking_id_code]))
 			if booking_id_code in self.AAAed['booking']:
 				booking_obj= self.AAAed['booking'][booking_id_code]
-				if booking_obj[9]==0 :
+				if '0' in booking_obj[9]:
 					self.GetBooking(booking_id_code,mode=SELECT)
 				else:
 					messagebox.showwarning('Errore Prenotazione', 'La prenotazione relativa al codice letto dal codice a barre risulta essere già stata venduta! CONTROLLARE LA SITUAZIONE DELLA SALA.')
